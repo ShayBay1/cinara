@@ -93,6 +93,7 @@ export function createSupabaseApi(url: string, anonKey: string): SnippetsApi {
           synopsis: (r.synopsis as string | null) ?? undefined,
           color: r.color as string,
           coverUrl: (r.cover_url as string | null) ?? null,
+          featured: (r.featured as boolean | null) ?? false,
           episodeCount: r.episode_count as number,
           latestEpisode: r.latest_episode as number,
           releaseDays: r.release_days as number[],

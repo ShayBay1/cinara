@@ -47,7 +47,8 @@ create table public.shows (
   release_days int[] not null,           -- drop nights, 0 = Sunday; each releases the next 10 episodes at 8 PM Eastern
   "cast" jsonb not null default '[]',
   episode_titles text[] not null default '{}',
-  published boolean not null default false
+  published boolean not null default false,
+  featured boolean not null default false  -- pinned to the top of Home
 );
 
 create table public.episodes (
@@ -358,5 +359,6 @@ create policy "read avatars" on storage.objects for select using (bucket_id = 'a
 --   alter table public.episodes add column if not exists reframe jsonb;
 --   alter table public.coming_soon add column if not exists title text;
 --   alter table public.shows add column if not exists cover_url text;
+--   alter table public.shows add column if not exists featured boolean not null default false;
 --   alter table public.friend_requests add column if not exists status text not null default 'pending';
 -- ---------------------------------------------------------------------------

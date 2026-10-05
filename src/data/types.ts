@@ -28,6 +28,8 @@ export interface Show {
   color: string;
   /** Cover art (public URL, Supabase Storage "covers" bucket). Cropped to fit each spot. */
   coverUrl?: string | null;
+  /** Pinned to the top of Home (the big card), ahead of the next premiere. */
+  featured?: boolean;
   episodeCount: number;
   /** Newest released episode. */
   latestEpisode: number;

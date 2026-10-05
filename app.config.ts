@@ -62,7 +62,8 @@ const config: ExpoConfig = {
     typedRoutes: true,
   },
   // Instant updates (EAS Update): screens and code changes go out without a new install.
-  runtimeVersion: { policy: 'appVersion' },
+  // "sdkVersion" tags updates with the Expo SDK (exposdk:57.0.0), which is what Expo Go can open.
+  runtimeVersion: { policy: 'sdkVersion' },
   ...(EAS_PROJECT_ID
     ? { updates: { url: `https://u.expo.dev/${EAS_PROJECT_ID}` }, extra: { eas: { projectId: EAS_PROJECT_ID } } }
     : {}),

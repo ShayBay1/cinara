@@ -10,8 +10,8 @@
  * finishes processing (a few minutes), it tells our server, which files the episode in the
  * database automatically. Then it plays in the app.
  *
- * Needs MUX_TOKEN_ID and MUX_TOKEN_SECRET in snippets-app/.env.local (never in .env: those values
- * would ship inside the app).
+ * Needs MUX_TOKEN_ID and MUX_TOKEN_SECRET in snippets-app/.env.mux. Not in .env or .env.local: Expo loads
+ * those automatically when it builds the app, and these keys must never be anywhere near the app.
  */
 import { createReadStream, readFileSync, statSync } from 'node:fs';
 import { homedir } from 'node:os';
@@ -20,7 +20,7 @@ import { resolve } from 'node:path';
 const env = Object.fromEntries(
   (() => {
     try {
-      return readFileSync(new URL('../.env.local', import.meta.url), 'utf8').split('\n');
+      return readFileSync(new URL('../.env.mux', import.meta.url), 'utf8').split('\n');
     } catch {
       return [];
     }
@@ -39,7 +39,7 @@ if (!showId || !Number.isInteger(number) || number < 1 || !fileArg) {
   process.exit(1);
 }
 if (!id || !secret) {
-  console.log('Add MUX_TOKEN_ID and MUX_TOKEN_SECRET to snippets-app/.env.local first.');
+  console.log('Add MUX_TOKEN_ID and MUX_TOKEN_SECRET to snippets-app/.env.mux first.');
   process.exit(1);
 }
 const file = resolve(fileArg.replace(/^~(?=\/)/, homedir()));

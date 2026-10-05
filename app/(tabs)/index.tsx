@@ -24,6 +24,7 @@ export default function HomeScreen() {
   const now = useNow(1000);
   const list = shows.data ?? [];
   const premiere = soonestPremiere(list, now);
+  const featured = list.find((s) => s.featured);
 
   return (
     <Screen
@@ -40,7 +41,14 @@ export default function HomeScreen() {
     >
       {shows.isError ? <ErrorState message="We couldn’t load the shows. Check your connection." onRetry={() => void shows.refetch()} /> : null}
 
-      {premiere ? <Hero premiere={premiere} now={now} /> : null}
+      {featured ? (
+        <>
+          <FeaturedHero show={featured} />
+          {premiere ? <PremiereStrip premiere={premiere} now={now} /> : null}
+        </>
+      ) : premiere ? (
+        <Hero premiere={premiere} now={now} />
+      ) : null}
 
       <ContinueWatching shows={list} />
 
@@ -131,6 +139,70 @@ function Hero({ premiere, now }: { premiere: Premiere; now: Date }) {
           </Pressable>
         </View>
       </View>
+    </Pressable>
+  );
+}
+
+/** A title pinned to the top of Home: its cover, its line, and one big Watch button. */
+function FeaturedHero({ show }: { show: Show }) {
+  const progress = useAppStore((s) => s.progress[show.id]);
+  const resumeEp = progress && progress.episode <= show.latestEpisode ? progress.episode : 1;
+  const resuming = !!progress && progress.positionSec > 5;
+  const special = show.episodeCount === 1;
+  return (
+    <Pressable accessibilityRole="button" accessibilityLabel={`${show.title}. ${show.tagline}`} onPress={() => openShow(show)} style={[styles.hero, { backgroundColor: show.color }]}>
+      {coverSource(show) ? <Image source={coverSource(show)!} style={StyleSheet.absoluteFill} contentFit="cover" transition={250} /> : <View style={styles.heroArt} />}
+      <View style={styles.stamp} accessibilityLabel="Real actors, no AI">
+        <T style={styles.stampSmall}>REAL</T>
+        <T style={styles.stampSerif}>actors</T>
+        <T style={styles.stampSmall}>NO AI</T>
+      </View>
+      <View style={styles.heroText}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+          <View style={styles.dot} />
+          <T style={styles.eyebrow}>{special ? `NOW STREAMING · ${show.genre.toUpperCase()}` : 'NOW STREAMING'}</T>
+        </View>
+        <T style={styles.heroTitle}>{show.title}</T>
+        <T style={styles.heroLine}>{show.tagline}</T>
+        <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
+          <Pressable
+            accessibilityRole="button"
+            onPress={() => router.push({ pathname: '/watch/[showId]/[episode]', params: { showId: show.id, episode: String(resumeEp) } })}
+            style={[styles.cta, { backgroundColor: colors.gold, paddingHorizontal: 22 }]}
+          >
+            <Icon name="play" size={17} color={colors.ink} />
+            <T style={styles.ctaText}>{resuming ? 'Resume' : special ? 'Watch now' : `Watch Episode ${resumeEp}`}</T>
+          </Pressable>
+          <Pressable accessibilityRole="button" onPress={() => openShow(show)} style={[styles.cta, styles.ctaGhost]}>
+            <T style={[styles.ctaText, { color: colors.text }]}>Details</T>
+          </Pressable>
+        </View>
+      </View>
+    </Pressable>
+  );
+}
+
+/** When a title is featured, the next premiere still gets a slim line under it. */
+function PremiereStrip({ premiere, now }: { premiere: Premiere; now: Date }) {
+  const { show, drop, at } = premiere;
+  const left = at.getTime() - now.getTime();
+  const live = left <= 0 && left > -LIVE_WINDOW_MS;
+  const c = countdownParts(left);
+  const word = dayLabel(at, now);
+  return (
+    <Pressable
+      accessibilityRole="button"
+      onPress={() => (live ? router.push({ pathname: '/live/[showId]', params: { showId: show.id } }) : openShow(show))}
+      style={({ pressed }) => [styles.strip, pressed && { opacity: 0.88 }]}
+    >
+      <View style={[styles.dot, live && { backgroundColor: colors.live }]} />
+      <View style={{ flex: 1 }}>
+        <T style={[styles.eyebrow, { fontSize: 10 }, live && { color: '#FF8A8E' }]}>{live ? 'LIVE NOW' : `PREMIERES ${word.toUpperCase()} · ${SLOT_LABEL}`}</T>
+        <T style={{ fontFamily: fonts.bodyHeavy, fontSize: 15, color: colors.text }} numberOfLines={1}>{`${show.title} · Eps ${drop.from}–${drop.to}`}</T>
+      </View>
+      <T style={{ fontFamily: fonts.bodyHeavy, fontSize: 15, color: colors.text, fontVariant: ['tabular-nums'] }}>
+        {live ? 'Watch' : c.days ? `${c.days}d ${c.h}h` : `${c.h}:${c.m}:${c.s}`}
+      </T>
     </Pressable>
   );
 }
@@ -237,6 +309,7 @@ const styles = StyleSheet.create({
   ctaOn: { backgroundColor: 'rgba(232,194,122,0.16)', borderWidth: 1, borderColor: colors.gold },
   ctaGhost: { borderWidth: 1, borderColor: 'rgba(244,241,234,0.4)' },
   ctaText: { fontFamily: fonts.bodyHeavy, fontSize: 14, color: colors.ink },
+  strip: { marginTop: 10, flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, paddingHorizontal: 14, borderRadius: 16, backgroundColor: colors.surface, borderWidth: 1, borderColor: '#24242C' },
   card: { gap: 12, padding: 12, borderRadius: 18, backgroundColor: colors.surface, borderWidth: 1, borderColor: '#24242C' },
   thumb: { width: 132, height: 74, borderRadius: 10, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
   thumbPlay: { width: 30, height: 30, borderRadius: 15, backgroundColor: 'rgba(244,241,234,0.9)', alignItems: 'center', justifyContent: 'center' },
