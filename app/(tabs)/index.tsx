@@ -143,40 +143,55 @@ function Hero({ premiere, now }: { premiere: Premiere; now: Date }) {
   );
 }
 
-/** A title pinned to the top of Home: its cover, its line, and one big Watch button. */
+/**
+ * A title pinned to the top of Home. The words sit up top over a light shade so the bottom of the
+ * key art (where the people usually are) stays clear; the buttons sit at the very bottom on their own.
+ * "The Making of X" titles get a two-part treatment: a small serif line, then X large in amber.
+ */
 function FeaturedHero({ show }: { show: Show }) {
   const progress = useAppStore((s) => s.progress[show.id]);
   const resumeEp = progress && progress.episode <= show.latestEpisode ? progress.episode : 1;
   const resuming = !!progress && progress.positionSec > 5;
   const special = show.episodeCount === 1;
+  const split = show.title.match(/^(the making of)\s+(.+)$/i);
   return (
     <Pressable accessibilityRole="button" accessibilityLabel={`${show.title}. ${show.tagline}`} onPress={() => openShow(show)} style={[styles.hero, { backgroundColor: show.color }]}>
       {coverSource(show) ? <Image source={coverSource(show)!} style={StyleSheet.absoluteFill} contentFit="cover" transition={250} /> : <View style={styles.heroArt} />}
+      <View style={styles.featureShade} pointerEvents="none" />
       <View style={styles.stamp} accessibilityLabel="Real actors, no AI">
         <T style={styles.stampSmall}>REAL</T>
         <T style={styles.stampSerif}>actors</T>
         <T style={styles.stampSmall}>NO AI</T>
       </View>
-      <View style={styles.heroText}>
+
+      <View style={styles.featureTop} pointerEvents="none">
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
           <View style={styles.dot} />
-          <T style={styles.eyebrow}>{special ? `NOW STREAMING · ${show.genre.toUpperCase()}` : 'NOW STREAMING'}</T>
+          <T style={[styles.eyebrow, styles.lift]}>{special ? `NOW STREAMING · ${show.genre.toUpperCase()}` : 'NOW STREAMING'}</T>
         </View>
-        <T style={styles.heroTitle}>{show.title}</T>
-        <T style={styles.heroLine}>{show.tagline}</T>
-        <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
-          <Pressable
-            accessibilityRole="button"
-            onPress={() => router.push({ pathname: '/watch/[showId]/[episode]', params: { showId: show.id, episode: String(resumeEp) } })}
-            style={[styles.cta, { backgroundColor: colors.gold, paddingHorizontal: 22 }]}
-          >
-            <Icon name="play" size={17} color={colors.ink} />
-            <T style={styles.ctaText}>{resuming ? 'Resume' : special ? 'Watch now' : `Watch Episode ${resumeEp}`}</T>
-          </Pressable>
-          <Pressable accessibilityRole="button" onPress={() => openShow(show)} style={[styles.cta, styles.ctaGhost]}>
-            <T style={[styles.ctaText, { color: colors.text }]}>Details</T>
-          </Pressable>
-        </View>
+        {split ? (
+          <View>
+            <T style={styles.featurePre}>{split[1]!.toLowerCase()}</T>
+            <T style={styles.featureName} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>{split[2]}</T>
+          </View>
+        ) : (
+          <T style={[styles.heroTitle, styles.lift]}>{show.title}</T>
+        )}
+        <T style={styles.featureLine} numberOfLines={2}>{show.tagline}</T>
+      </View>
+
+      <View style={styles.featureButtons}>
+        <Pressable
+          accessibilityRole="button"
+          onPress={() => router.push({ pathname: '/watch/[showId]/[episode]', params: { showId: show.id, episode: String(resumeEp) } })}
+          style={[styles.cta, { backgroundColor: colors.gold, paddingHorizontal: 22 }]}
+        >
+          <Icon name="play" size={17} color={colors.ink} />
+          <T style={styles.ctaText}>{resuming ? 'Resume' : special ? 'Watch now' : `Watch Episode ${resumeEp}`}</T>
+        </Pressable>
+        <Pressable accessibilityRole="button" onPress={() => openShow(show)} style={[styles.cta, styles.ctaGlass]}>
+          <T style={[styles.ctaText, { color: colors.text }]}>Details</T>
+        </Pressable>
       </View>
     </Pressable>
   );
@@ -309,6 +324,14 @@ const styles = StyleSheet.create({
   ctaOn: { backgroundColor: 'rgba(232,194,122,0.16)', borderWidth: 1, borderColor: colors.gold },
   ctaGhost: { borderWidth: 1, borderColor: 'rgba(244,241,234,0.4)' },
   ctaText: { fontFamily: fonts.bodyHeavy, fontSize: 14, color: colors.ink },
+  featureShade: { ...StyleSheet.absoluteFill, experimental_backgroundImage: 'linear-gradient(180deg, rgba(6,6,10,0.62) 0%, rgba(6,6,10,0.25) 30%, rgba(6,6,10,0) 48%)' },
+  featureTop: { position: 'absolute', left: 18, right: 92, top: 18, gap: 6 },
+  lift: { textShadowColor: 'rgba(0,0,0,0.5)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 8 },
+  featurePre: { fontFamily: fonts.serifItalic, fontSize: 24, lineHeight: 28, color: colors.text, textShadowColor: 'rgba(0,0,0,0.45)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 8 },
+  featureName: { fontFamily: fonts.display, fontSize: 66, lineHeight: 80, letterSpacing: 1.5, textTransform: 'uppercase', color: '#F4A54A', textShadowColor: 'rgba(0,0,0,0.4)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 14 },
+  featureLine: { fontFamily: fonts.serifItalic, fontSize: 16, lineHeight: 21, color: '#F1E6E2', textShadowColor: 'rgba(0,0,0,0.6)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 8 },
+  featureButtons: { position: 'absolute', left: 16, bottom: 16, flexDirection: 'row', gap: 8 },
+  ctaGlass: { backgroundColor: 'rgba(8,8,10,0.45)', borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(244,241,234,0.55)' },
   strip: { marginTop: 10, flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, paddingHorizontal: 14, borderRadius: 16, backgroundColor: colors.surface, borderWidth: 1, borderColor: '#24242C' },
   card: { gap: 12, padding: 12, borderRadius: 18, backgroundColor: colors.surface, borderWidth: 1, borderColor: '#24242C' },
   thumb: { width: 132, height: 74, borderRadius: 10, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
