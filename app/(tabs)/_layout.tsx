@@ -13,7 +13,17 @@ function ProfileTabIcon({ focused }: { focused: boolean }) {
   const me = useMe();
   const localAvatar = useAppStore((s) => s.avatarUrl);
   return (
-    <View style={{ width: 32, height: 32, borderRadius: 16, alignItems: 'center', justifyContent: 'center', borderWidth: 1.5, borderColor: focused ? colors.text : 'transparent' }}>
+    <View
+      style={{
+        width: 32,
+        height: 32,
+        borderRadius: 16,
+        alignItems: 'center',
+        justifyContent: 'center',
+        borderWidth: 1.5,
+        borderColor: focused ? colors.text : 'transparent',
+      }}
+    >
       <Avatar handle={me.data?.handle ?? 'you'} url={me.data?.avatarUrl ?? localAvatar} size={26} />
     </View>
   );
@@ -21,7 +31,9 @@ function ProfileTabIcon({ focused }: { focused: boolean }) {
 
 const tab = (title: string, icon: IconName) => ({
   title,
-  tabBarIcon: ({ color }: { color: ColorValue }) => <Icon name={icon} color={String(color)} size={23} />,
+  tabBarIcon: ({ color }: { color: ColorValue }) => (
+    <Icon name={icon} color={String(color)} size={23} />
+  ),
 });
 
 export default function TabsLayout() {
@@ -30,8 +42,8 @@ export default function TabsLayout() {
     <Tabs
       screenOptions={{
         headerShown: false,
-        tabBarActiveTintColor: colors.text,
-        tabBarInactiveTintColor: '#8C889A',
+        tabBarActiveTintColor: colors.gold,
+        tabBarInactiveTintColor: '#A8977A',
         tabBarLabelStyle: { fontFamily: fonts.bodyBold, fontSize: 11 },
         tabBarStyle: {
           position: 'absolute',
@@ -43,8 +55,8 @@ export default function TabsLayout() {
           borderRadius: 24,
           borderTopWidth: 0,
           borderWidth: 1,
-          borderColor: '#2A2A33',
-          backgroundColor: 'rgba(19,19,24,0.96)',
+          borderColor: '#3A2E20',
+          backgroundColor: 'rgba(30,23,16,0.97)',
         },
         sceneStyle: { backgroundColor: colors.ink },
       }}
@@ -54,7 +66,7 @@ export default function TabsLayout() {
       {/* Live opens the next premiere's room straight away (it's a full-screen player, not a tab page). */}
       <Tabs.Screen
         name="live"
-        options={tab('Live', 'live')}
+        options={tab('Tonight', 'reel')}
         listeners={{
           tabPress: (e) => {
             const next = soonestPremiere(shows.data ?? [], new Date());

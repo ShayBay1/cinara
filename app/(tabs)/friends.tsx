@@ -3,10 +3,17 @@ import { router } from 'expo-router';
 import { useState } from 'react';
 import { Alert, Platform, Share, StyleSheet, TextInput, View } from 'react-native';
 
+import { Icon } from '@/components/Icon';
 import { Screen } from '@/components/Screen';
 import { Avatar, Button, IconButton, Panel, SectionHeader, SwitchRow, T } from '@/components/ui';
 import { api } from '@/data';
-import { useFriendRequests, useFriends, useMe, useRespondToRequest, useShows } from '@/hooks/queries';
+import {
+  useFriendRequests,
+  useFriends,
+  useMe,
+  useRespondToRequest,
+  useShows,
+} from '@/hooks/queries';
 import { WEB_URL } from '@/lib/billing';
 import { useAppStore } from '@/store/useAppStore';
 import { colors, fonts, radius } from '@/theme/tokens';
@@ -36,7 +43,10 @@ export default function FriendsScreen() {
       setQuery('');
       say('Request sent', `We sent a friend request to ${handle}.`);
     } catch (e) {
-      say('Couldn’t send request', e instanceof Error ? e.message : 'Check the username and try again.');
+      say(
+        'Couldn’t send request',
+        e instanceof Error ? e.message : 'Check the username and try again.',
+      );
     } finally {
       setSending(false);
     }
@@ -75,14 +85,30 @@ export default function FriendsScreen() {
             accessibilityLabel="Find friends by username"
             style={styles.input}
           />
-          <Button compact kind="outline" label="Add" loading={sending} disabled={!query.trim()} onPress={addFriend} style={{ minHeight: 46, borderRadius: radius.md }} />
+          <Button
+            compact
+            kind="outline"
+            label="Add"
+            loading={sending}
+            disabled={!query.trim()}
+            onPress={addFriend}
+            style={{ minHeight: 46, borderRadius: radius.md }}
+          />
         </View>
         <Panel style={styles.invite}>
           <View style={{ flex: 1 }}>
             <T variant="label">Invite friends to Snippets</T>
-            <T variant="caption" style={{ color: '#BDB4A6' }}>They land on Episode 1 and you're friends automatically.</T>
+            <T variant="caption" style={{ color: '#BDB4A6' }}>
+              They land on Episode 1 and you're friends automatically.
+            </T>
           </View>
-          <Button compact kind="outline" label={Platform.OS === 'web' ? 'Copy link' : 'Invite'} onPress={invite} style={{ borderColor: '#5A4E36' }} />
+          <Button
+            compact
+            kind="outline"
+            label={Platform.OS === 'web' ? 'Copy link' : 'Invite'}
+            onPress={invite}
+            style={{ borderColor: '#5A4E36' }}
+          />
         </Panel>
       </View>
 
@@ -97,8 +123,18 @@ export default function FriendsScreen() {
                   <T variant="label">{r.from.handle}</T>
                   <T variant="caption">{r.note}</T>
                 </View>
-                <Button compact label="Accept" onPress={() => respond.mutate({ id: r.id, accept: true })} />
-                <IconButton icon="close" label={`Decline ${r.from.handle}`} size={38} style={{ borderWidth: 1, borderColor: '#3A3A44' }} onPress={() => respond.mutate({ id: r.id, accept: false })} />
+                <Button
+                  compact
+                  label="Accept"
+                  onPress={() => respond.mutate({ id: r.id, accept: true })}
+                />
+                <IconButton
+                  icon="close"
+                  label={`Decline ${r.from.handle}`}
+                  size={38}
+                  style={{ borderWidth: 1, borderColor: '#3A2E20' }}
+                  onPress={() => respond.mutate({ id: r.id, accept: false })}
+                />
               </View>
             ))}
           </Panel>
@@ -106,8 +142,26 @@ export default function FriendsScreen() {
       ) : null}
 
       <View style={{ paddingTop: 28 }}>
-        <SectionHeader title="Your friends" action={<T variant="caption">{`${friends.data?.length ?? 0} friends`}</T>} />
-        <Panel>
+        <SectionHeader
+          title="Your friends"
+          action={<T variant="caption">{`${friends.data?.length ?? 0} friends`}</T>}
+        />
+        {friends.data && friends.data.length === 0 ? (
+          <Panel style={{ padding: 18, gap: 10, alignItems: 'flex-start' }}>
+            <Icon name="friends" color={colors.muted} />
+            <T variant="label">No friends here yet</T>
+            <T variant="caption" style={{ fontSize: 14 }}>
+              Invite a friend. You both start at Episode 1, and you’ll see each other in the
+              premiere lobby.
+            </T>
+            <Button
+              compact
+              label={Platform.OS === 'web' ? 'Copy invite link' : 'Invite a friend'}
+              onPress={invite}
+            />
+          </Panel>
+        ) : null}
+        <Panel style={friends.data && friends.data.length === 0 ? { display: 'none' } : undefined}>
           {(friends.data ?? []).map((f, i) => {
             const live = shareActivity && !!f.watching?.watchingNow;
             const status = !shareActivity
@@ -120,15 +174,24 @@ export default function FriendsScreen() {
                 <Avatar handle={f.handle} url={f.avatarUrl} size={42} online={live} />
                 <View style={{ flex: 1 }}>
                   <T variant="label">{f.handle}</T>
-                  <T variant="caption" style={live ? { color: colors.friend } : undefined}>{status}</T>
+                  <T variant="caption" style={live ? { color: colors.friend } : undefined}>
+                    {status}
+                  </T>
                 </View>
                 {f.watching ? (
                   <Button
                     compact
                     kind="outline"
-                    label={live ? 'Join in' : 'Say hi'}
+                    label={live ? 'Join in' : 'Watch with them'}
+                    accessibilityHint={`Opens ${showTitle(f.watching.showId)}, episode ${f.watching.episode}`}
                     onPress={() =>
-                      router.push({ pathname: '/watch/[showId]/[episode]', params: { showId: f.watching!.showId, episode: String(f.watching!.episode) } })
+                      router.push({
+                        pathname: '/watch/[showId]/[episode]',
+                        params: {
+                          showId: f.watching!.showId,
+                          episode: String(f.watching!.episode),
+                        },
+                      })
                     }
                   />
                 ) : null}
@@ -149,7 +212,12 @@ export default function FriendsScreen() {
           }}
         />
         <View style={styles.divider} />
-        <SwitchRow label="Show friends’ comments first" hint="Adds a Friends tab to every episode." value={friendsFirst} onChange={setFriendsFirst} />
+        <SwitchRow
+          label="Show friends’ comments first"
+          hint="Adds a Friends tab to every episode."
+          value={friendsFirst}
+          onChange={setFriendsFirst}
+        />
       </Panel>
     </Screen>
   );
@@ -161,8 +229,26 @@ function say(title: string, message: string) {
 }
 
 const styles = StyleSheet.create({
-  input: { flex: 1, height: 46, borderRadius: radius.md, borderWidth: 1, borderColor: '#3A3A44', backgroundColor: colors.surface, paddingHorizontal: 16, color: colors.text, fontFamily: fonts.body, fontSize: 15 },
-  invite: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 14, backgroundColor: colors.goldInk, borderColor: '#4A4436' },
+  input: {
+    flex: 1,
+    height: 46,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: '#3A2E20',
+    backgroundColor: colors.surface,
+    paddingHorizontal: 16,
+    color: colors.text,
+    fontFamily: fonts.body,
+    fontSize: 15,
+  },
+  invite: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 14,
+    backgroundColor: colors.goldInk,
+    borderColor: '#4A4436',
+  },
   row: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12 },
   divider: { borderTopWidth: 1, borderTopColor: colors.line },
 });

@@ -3,22 +3,26 @@ import { router } from 'expo-router';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { Develop } from '@/components/Develop';
 import { Icon } from '@/components/Icon';
 import { HomeTop } from '@/components/launch/HomeTop';
-import { ErrorState, T } from '@/components/ui';
-import type { Show } from '@/data';
+import { Avatar, ErrorState, T } from '@/components/ui';
+import type { Friend, Show } from '@/data';
 import { coverSource } from '@/data/covers';
-import { useComingSoon, useShows } from '@/hooks/queries';
+import { useComingSoon, useFriends, useShows } from '@/hooks/queries';
 import { useNow } from '@/hooks/useNow';
 import { soonestPremiere } from '@/lib/premieres';
 import { dropOf } from '@/lib/schedule';
 import { useAppStore } from '@/store/useAppStore';
 import { colors, fonts, home, radius } from '@/theme/tokens';
 
+const openShow = (id: string) =>
+  router.push({ pathname: '/show/[showId]', params: { showId: id } });
+
 /**
- * Home. The top (logo, search, tonight's premiere card, Now streaming) is laid out to match the
- * last frame of the launch animation, which dissolves straight into it. Below: where you left
- * off and what's coming.
+ * Home answers one question at a glance: what's on tonight, and how long until it starts?
+ * The top (logo, search, the Tonight card, Now streaming) matches the launch animation's last
+ * frame. Below it: where you left off, what friends are watching, tropes, and what's coming.
  */
 export default function HomeScreen() {
   const shows = useShows();
@@ -51,9 +55,12 @@ export default function HomeScreen() {
           />
         ) : null}
         <ContinueWatching shows={list} />
+        <FriendsWatching shows={list} />
+        <Tropes shows={list} />
         {coming.data ? (
           <ComingSoonRow
             title={coming.data.title ?? 'Next on Snippets'}
+            teaser={coming.data.teaser}
             arrives={coming.data.arrives}
           />
         ) : null}
@@ -62,109 +69,244 @@ export default function HomeScreen() {
   );
 }
 
-/** Where you left off, with this week's drop progress. */
+function Label({ children }: { children: string }) {
+  return <T style={styles.h2}>{children}</T>;
+}
+
+/** Everything you're partway through, most recent first, with a gold progress line. */
 function ContinueWatching({ shows }: { shows: Show[] }) {
   const progress = useAppStore((s) => s.progress);
-  const resume = Object.entries(progress)
+  const items = Object.entries(progress)
     .map(([id, p]) => ({ show: shows.find((s) => s.id === id), p }))
-    .find((x) => x.show && x.p.episode <= x.show.latestEpisode);
-  if (!resume?.show) return null;
-  const { show, p } = resume;
-  const dur = p.durationSec ?? 0;
-  const left = dur > 0 ? Math.max(0, dur - p.positionSec) : 0;
-  const frac = dur > 0 ? Math.min(1, p.positionSec / dur) : 0;
-  const drop = dropOf(p.episode, show.episodeCount);
-  const size = drop.to - drop.from + 1;
-  const title = show.episodeTitles[p.episode - 1];
+    .filter(
+      (x): x is { show: Show; p: (typeof x)['p'] } =>
+        !!x.show && x.p.episode <= x.show.latestEpisode,
+    )
+    .sort((a, b) => (b.p.updatedAt ?? 0) - (a.p.updatedAt ?? 0));
+  if (!items.length) return null;
   const fmt = (t: number) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
 
   return (
     <View style={styles.section}>
-      <T style={styles.h2}>Continue watching</T>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel={`Continue ${show.title}, episode ${p.episode}`}
-        onPress={() =>
-          router.push({
-            pathname: '/watch/[showId]/[episode]',
-            params: { showId: show.id, episode: String(p.episode) },
-          })
-        }
-        style={({ pressed }) => [styles.card, pressed && { opacity: 0.88 }]}
+      <Label>Continue watching</Label>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={{ marginHorizontal: -16 }}
+        contentContainerStyle={{ paddingHorizontal: 16, gap: 10 }}
       >
-        <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
-          <View style={[styles.thumb, { backgroundColor: show.color }]}>
-            {coverSource(show) ? (
-              <Image
-                source={coverSource(show)!}
-                style={StyleSheet.absoluteFill}
-                contentFit="cover"
-              />
-            ) : null}
-            <View style={styles.thumbPlay}>
-              <Icon name="play" size={14} color={colors.ink} />
-            </View>
-            <View style={styles.thumbTrack}>
-              <View style={{ width: `${frac * 100}%`, height: 4, backgroundColor: colors.text }} />
-            </View>
-          </View>
-          <View style={{ gap: 4, flexShrink: 1 }}>
-            <T style={styles.kicker}>{show.title.toUpperCase()}</T>
-            <T
-              style={{ fontFamily: fonts.bodyHeavy, fontSize: 16, color: colors.text }}
-              numberOfLines={1}
-            >{`Ep ${p.episode}${title ? ` · ${title}` : ''}`}</T>
-            {left > 0 ? <T style={styles.meta}>{`${fmt(left)} left`}</T> : null}
-          </View>
-        </View>
-        <View style={{ gap: 6 }}>
-          <View style={{ flexDirection: 'row', gap: 4 }}>
-            {Array.from({ length: size }, (_, i) => {
-              const n = drop.from + i;
-              return (
-                <View
-                  key={n}
-                  style={[
-                    styles.seg,
-                    n < p.episode && { backgroundColor: colors.text },
-                    n === p.episode && { backgroundColor: 'rgba(244,241,234,0.55)' },
-                  ]}
-                />
-              );
-            })}
-          </View>
-          <T style={styles.meta}>{`Episode ${p.episode} of ${drop.to}`}</T>
-        </View>
-      </Pressable>
+        {items.map(({ show, p }) => {
+          const dur = p.durationSec ?? 0;
+          const left = dur > 0 ? Math.max(0, dur - p.positionSec) : 0;
+          const frac = dur > 0 ? Math.min(1, p.positionSec / dur) : 0;
+          const title = show.episodeTitles[p.episode - 1];
+          const drop = dropOf(p.episode, show.episodeCount);
+          return (
+            <Pressable
+              key={show.id}
+              accessibilityRole="button"
+              accessibilityLabel={`Continue ${show.title}, episode ${p.episode}${left > 0 ? `, ${fmt(left)} left` : ''}`}
+              onPress={() =>
+                router.push({
+                  pathname: '/watch/[showId]/[episode]',
+                  params: { showId: show.id, episode: String(p.episode) },
+                })
+              }
+              style={({ pressed }) => [{ width: 176, gap: 6 }, pressed && { opacity: 0.85 }]}
+            >
+              <View style={[styles.thumb, { backgroundColor: show.color }]}>
+                {coverSource(show) ? (
+                  <Image
+                    source={coverSource(show)!}
+                    style={StyleSheet.absoluteFill}
+                    contentFit="cover"
+                  />
+                ) : null}
+                <View style={styles.thumbPlay}>
+                  <Icon name="play" size={14} color={colors.ink} filled />
+                </View>
+                <View style={styles.thumbTrack}>
+                  <View
+                    style={{ width: `${frac * 100}%`, height: 3, backgroundColor: colors.gold }}
+                  />
+                </View>
+              </View>
+              <T style={styles.kicker} numberOfLines={1}>
+                {show.title}
+              </T>
+              <T
+                style={styles.epLine}
+                numberOfLines={1}
+              >{`Ep ${p.episode}${title ? ` · ${title}` : ''}`}</T>
+              <T style={styles.meta}>
+                {left > 0
+                  ? `${fmt(left)} left · ${drop.to - p.episode} more this drop`
+                  : `Episode ${p.episode} of ${drop.to}`}
+              </T>
+            </Pressable>
+          );
+        })}
+      </ScrollView>
     </View>
   );
 }
 
-function ComingSoonRow({ title, arrives }: { title: string; arrives: string }) {
+/** Friends' faces on what they're watching: the social layer as a reason to open the app. */
+function FriendsWatching({ shows }: { shows: Show[] }) {
+  const friends = useFriends();
+  const active = (friends.data ?? []).filter(
+    (f): f is Friend & { watching: NonNullable<Friend['watching']> } =>
+      !!f.watching && !f.watching.caughtUp,
+  );
+  if (!active.length) return null;
+  return (
+    <View style={styles.section}>
+      <Label>Your friends are watching</Label>
+      <View style={styles.card}>
+        {active.slice(0, 4).map((f, i) => {
+          const show = shows.find((s) => s.id === f.watching.showId);
+          if (!show) return null;
+          return (
+            <Pressable
+              key={f.id}
+              accessibilityRole="button"
+              accessibilityLabel={`${f.handle} is ${f.watching.watchingNow ? 'watching' : 'on'} ${show.title}, episode ${f.watching.episode}. Watch with them.`}
+              onPress={() =>
+                router.push({
+                  pathname: '/watch/[showId]/[episode]',
+                  params: { showId: show.id, episode: String(f.watching.episode) },
+                })
+              }
+              style={({ pressed }) => [
+                styles.friendRow,
+                i > 0 && styles.rule,
+                pressed && { opacity: 0.85 },
+              ]}
+            >
+              <Avatar
+                handle={f.handle}
+                url={f.avatarUrl}
+                size={40}
+                online={f.watching.watchingNow}
+              />
+              <View style={{ flex: 1 }}>
+                <T style={{ fontFamily: fonts.bodyHeavy, fontSize: 14, color: colors.text }}>
+                  {f.handle}
+                </T>
+                <T
+                  style={[styles.meta, f.watching.watchingNow && { color: colors.friend }]}
+                  numberOfLines={1}
+                >
+                  {`${f.watching.watchingNow ? 'Watching now' : 'Watching'} · ${show.title} · Ep ${f.watching.episode}`}
+                </T>
+              </View>
+              <T style={{ fontFamily: fonts.bodyHeavy, fontSize: 12, color: colors.gold }}>
+                Watch with them
+              </T>
+            </Pressable>
+          );
+        })}
+      </View>
+    </View>
+  );
+}
+
+/** Tropes are how vertical-drama fans browse: one tap searches for the trope. */
+function Tropes({ shows }: { shows: Show[] }) {
+  const tropes = [...new Set(shows.map((s) => s.genre).filter(Boolean))];
+  if (!tropes.length) return null;
+  return (
+    <View style={styles.section}>
+      <Label>Browse by trope</Label>
+      <ScrollView
+        horizontal
+        showsHorizontalScrollIndicator={false}
+        style={{ marginHorizontal: -16 }}
+        contentContainerStyle={{ paddingHorizontal: 16, gap: 8 }}
+      >
+        {tropes.map((t) => (
+          <Pressable
+            key={t}
+            accessibilityRole="button"
+            accessibilityLabel={`Shows with the trope ${t}`}
+            onPress={() => router.push({ pathname: '/search', params: { q: t } })}
+            style={({ pressed }) => [
+              styles.chip,
+              pressed && { backgroundColor: colors.surfaceRaised },
+            ]}
+          >
+            <T style={{ fontFamily: fonts.bodyBold, fontSize: 13, color: colors.text }}>{t}</T>
+          </Pressable>
+        ))}
+      </ScrollView>
+    </View>
+  );
+}
+
+/** What's next on Snippets: in sepia until it arrives. */
+function ComingSoonRow({
+  title,
+  teaser,
+  arrives,
+}: {
+  title: string;
+  teaser: string;
+  arrives: string;
+}) {
   const notify = useAppStore((s) => s.notifyComingSoon);
   const setNotify = useAppStore((s) => s.setNotifyComingSoon);
   return (
     <View style={styles.section}>
-      <T style={styles.h2}>Coming soon</T>
-      <View style={[styles.card, { flexDirection: 'row', alignItems: 'center' }]}>
-        <View style={styles.soonArt}>
-          <T style={{ fontFamily: fonts.display, fontSize: 22, color: colors.text }}>
-            s<T style={{ fontFamily: fonts.display, fontSize: 22, color: colors.accent }}>.</T>
+      <Label>Coming soon</Label>
+      <View
+        style={[styles.card, { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12 }]}
+      >
+        <Develop developed={false} style={styles.soonArt}>
+          <View
+            style={[
+              StyleSheet.absoluteFill,
+              { backgroundColor: colors.wine, alignItems: 'center', justifyContent: 'center' },
+            ]}
+          >
+            <Icon name="reel" size={30} color={colors.goldLight} />
+          </View>
+        </Develop>
+        <View style={{ flex: 1, gap: 3 }}>
+          <T style={{ fontFamily: fonts.engraved, fontSize: 14, color: colors.goldLight }}>
+            {title}
           </T>
-        </View>
-        <View style={{ flex: 1, gap: 2 }}>
-          <T style={{ fontFamily: fonts.bodyHeavy, fontSize: 15, color: colors.text }}>{title}</T>
+          <T
+            style={{
+              fontFamily: fonts.serifItalic,
+              fontSize: 14,
+              lineHeight: 18,
+              color: colors.textSoft,
+            }}
+            numberOfLines={2}
+          >
+            {teaser}
+          </T>
           <T style={styles.meta}>{arrives}</T>
         </View>
         <Pressable
           accessibilityRole="button"
+          accessibilityLabel={
+            notify
+              ? `We'll tell you when ${title} arrives. Tap to turn off.`
+              : `Tell me when ${title} arrives`
+          }
           accessibilityState={{ selected: notify }}
           onPress={() => setNotify(!notify)}
-          style={[styles.notify, notify && { borderColor: colors.text }]}
+          style={[
+            styles.notify,
+            notify && { borderColor: colors.gold, backgroundColor: 'rgba(255,184,0,0.12)' },
+          ]}
         >
-          <T style={{ fontFamily: fonts.bodyHeavy, fontSize: 13, color: colors.text }}>
-            {notify ? 'On' : 'Notify me'}
-          </T>
+          <Icon
+            name={notify ? 'check' : 'bell'}
+            size={18}
+            color={notify ? colors.gold : colors.text}
+          />
         </Pressable>
       </View>
     </View>
@@ -173,30 +315,51 @@ function ComingSoonRow({ title, arrives }: { title: string; arrives: string }) {
 
 const styles = StyleSheet.create({
   section: { paddingTop: 26 },
-  h2: { fontFamily: fonts.bodyHeavy, fontSize: 18, color: colors.text, marginBottom: 10 },
-  meta: { fontFamily: fonts.bodyBold, fontSize: 12, color: colors.textSoft },
-  kicker: { fontFamily: fonts.bodyHeavy, fontSize: 11, letterSpacing: 1.4, color: '#A7A3B3' },
+  h2: {
+    fontFamily: fonts.engraved,
+    fontSize: 12,
+    letterSpacing: 2.6,
+    textTransform: 'uppercase',
+    color: colors.text,
+    marginBottom: 10,
+  },
+  meta: { fontFamily: fonts.bodyBold, fontSize: 12, color: colors.muted },
+  kicker: {
+    fontFamily: fonts.engraved,
+    fontSize: 11,
+    letterSpacing: 1.2,
+    textTransform: 'uppercase',
+    color: colors.goldLight,
+  },
+  epLine: { fontFamily: fonts.bodyHeavy, fontSize: 14, color: colors.text },
   card: {
-    gap: 12,
-    padding: 12,
-    borderRadius: 18,
+    borderRadius: radius.md,
     backgroundColor: colors.surface,
     borderWidth: 1,
-    borderColor: '#24242C',
+    borderColor: colors.line,
+    paddingHorizontal: 12,
+  },
+  rule: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.line },
+  friendRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    paddingVertical: 12,
+    minHeight: 64,
   },
   thumb: {
-    width: 132,
-    height: 74,
+    width: 176,
+    height: 99,
     borderRadius: 10,
     overflow: 'hidden',
     alignItems: 'center',
     justifyContent: 'center',
   },
   thumbPlay: {
-    width: 30,
-    height: 30,
-    borderRadius: 15,
-    backgroundColor: 'rgba(244,241,234,0.9)',
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: 'rgba(243,234,216,0.9)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -205,24 +368,26 @@ const styles = StyleSheet.create({
     left: 0,
     right: 0,
     bottom: 0,
-    height: 4,
-    backgroundColor: 'rgba(244,241,234,0.25)',
+    height: 3,
+    backgroundColor: 'rgba(243,234,216,0.25)',
   },
-  seg: { flex: 1, height: 5, borderRadius: 3, backgroundColor: '#2E2E38' },
-  soonArt: {
-    width: 56,
-    height: 72,
-    borderRadius: 10,
-    backgroundColor: colors.wine,
+  chip: {
+    height: 40,
+    paddingHorizontal: 16,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.surface,
     alignItems: 'center',
     justifyContent: 'center',
   },
+  soonArt: { width: 56, height: 76, borderRadius: 8 },
   notify: {
-    height: 40,
-    paddingHorizontal: 14,
-    borderRadius: radius.pill,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
     borderWidth: 1,
-    borderColor: '#4A4A55',
+    borderColor: colors.line,
     alignItems: 'center',
     justifyContent: 'center',
   },

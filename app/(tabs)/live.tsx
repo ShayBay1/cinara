@@ -15,12 +15,23 @@ export default function LiveTab() {
   const now = useNow(30_000);
   const next = soonestPremiere(shows.data ?? [], now);
   return (
-    <Screen title="Live" subtitle={`Every premiere is live at ${SLOT_LABEL}.`}>
+    <Screen
+      title="Tonight"
+      subtitle={`Every premiere is live at ${SLOT_LABEL}, with the cast in the chat.`}
+    >
       <View style={{ paddingTop: 24, gap: 14 }}>
         {next ? (
           <>
-            <T variant="serif" style={{ fontSize: 28, lineHeight: 32 }}>{`${next.show.title}, Episodes ${next.drop.from}–${next.drop.to}, ${dayLabel(next.at, now)} at ${SLOT_LABEL}.`}</T>
-            <Button kind="live" label="Go to the premiere" onPress={() => router.push({ pathname: '/live/[showId]', params: { showId: next.show.id } })} />
+            <T
+              variant="serif"
+              style={{ fontSize: 28, lineHeight: 32 }}
+            >{`${next.show.title}, Episodes ${next.drop.from}–${next.drop.to}, ${dayLabel(next.at, now)} at ${SLOT_LABEL}.`}</T>
+            <Button
+              label="Go to the lobby"
+              onPress={() =>
+                router.push({ pathname: '/live/[showId]', params: { showId: next.show.id } })
+              }
+            />
           </>
         ) : (
           <T style={{ color: colors.textSoft }}>No premieres scheduled right now.</T>

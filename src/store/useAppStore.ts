@@ -11,6 +11,22 @@ interface Progress {
   positionSec: number;
   /** Episode length, so home can say how much is left. */
   durationSec?: number;
+  /** When it was last saved (ms), so Continue watching shows the most recent first. */
+  updatedAt?: number;
+}
+
+/** A ticket stub: kept for every premiere you were in the room for, live. */
+export interface TicketStub {
+  /** showId + premiere start, so one night gives one stub. */
+  id: string;
+  showId: string;
+  showTitle: string;
+  /** ISO time the premiere started. */
+  at: string;
+  from: number;
+  to: number;
+  /** Cast roles who were in the chat, if any. */
+  cast: string[];
 }
 
 interface AppState {
@@ -25,6 +41,10 @@ interface AppState {
   notifyComingSoon: boolean;
   /** "Smooth rotation": the glide turn. Off: the classic flip (hold past 45 degrees). */
   followTurn: boolean;
+  /** The first-run "Pick three" has been seen. */
+  onboarded: boolean;
+  recentSearches: string[];
+  stubs: TicketStub[];
 
   toggleMyList: (showId: string) => void;
   setReminder: (showId: string, notificationId: string | null) => void;
@@ -35,6 +55,10 @@ interface AppState {
   setAvatarUrl: (url: string | null) => void;
   setNotifyComingSoon: (v: boolean) => void;
   setFollowTurn: (v: boolean) => void;
+  setOnboarded: (v: boolean) => void;
+  addRecentSearch: (q: string) => void;
+  clearRecentSearches: () => void;
+  addStub: (stub: TicketStub) => void;
 }
 
 export const useAppStore = create<AppState>()(
@@ -49,6 +73,9 @@ export const useAppStore = create<AppState>()(
       avatarUrl: null,
       notifyComingSoon: false,
       followTurn: true,
+      onboarded: false,
+      recentSearches: [],
+      stubs: [],
 
       toggleMyList: (showId) =>
         set((s) => {
@@ -64,13 +91,29 @@ export const useAppStore = create<AppState>()(
           else delete next[showId];
           return { reminders: next };
         }),
-      saveProgress: (showId, p) => set((s) => ({ progress: { ...s.progress, [showId]: p } })),
+      saveProgress: (showId, p) =>
+        set((s) => ({ progress: { ...s.progress, [showId]: { ...p, updatedAt: Date.now() } } })),
       setShareActivity: (v) => set({ shareActivity: v }),
       setFriendsFirst: (v) => set({ friendsFirst: v }),
       setChatHidden: (v) => set({ chatHidden: v }),
       setAvatarUrl: (url) => set({ avatarUrl: url }),
       setNotifyComingSoon: (v) => set({ notifyComingSoon: v }),
       setFollowTurn: (v) => set({ followTurn: v }),
+      setOnboarded: (v) => set({ onboarded: v }),
+      addRecentSearch: (q) =>
+        set((s) => {
+          const t = q.trim();
+          if (!t) return {};
+          return {
+            recentSearches: [
+              t,
+              ...s.recentSearches.filter((x) => x.toLowerCase() !== t.toLowerCase()),
+            ].slice(0, 8),
+          };
+        }),
+      clearRecentSearches: () => set({ recentSearches: [] }),
+      addStub: (stub) =>
+        set((s) => (s.stubs.some((x) => x.id === stub.id) ? {} : { stubs: [stub, ...s.stubs] })),
     }),
     {
       name: 'snippets-app',

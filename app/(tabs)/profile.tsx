@@ -1,18 +1,23 @@
+import { Image } from 'expo-image';
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
 import { router } from 'expo-router';
 import * as WebBrowser from 'expo-web-browser';
 import { useState } from 'react';
-import { Alert, Platform, Pressable, StyleSheet, View } from 'react-native';
+import { Alert, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
+import { Develop } from '@/components/Develop';
 import { Icon } from '@/components/Icon';
+import { Reel } from '@/components/Reel';
 import { Screen } from '@/components/Screen';
-import { Avatar, Button, Panel, SectionHeader, SwitchRow, T } from '@/components/ui';
-import { api } from '@/data';
+import { Avatar, Button, T } from '@/components/ui';
+import { coverSource } from '@/data/covers';
+import { api, type Show } from '@/data';
 import { useMe, useMembership, useShows, useUploadAvatar } from '@/hooks/queries';
 import { canSellHere, MEMBERSHIP_PRICE_LABEL, showExternalJoinLink, WEB_URL } from '@/lib/billing';
-import { useAppStore } from '@/store/useAppStore';
-import { colors } from '@/theme/tokens';
+import { easternParts } from '@/lib/schedule';
+import { useAppStore, type TicketStub } from '@/store/useAppStore';
+import { colors, fonts, radius } from '@/theme/tokens';
 
 const MAX_UPLOAD_BYTES = 15 * 1024 * 1024;
 
@@ -24,8 +29,7 @@ export default function ProfileScreen() {
   const myList = useAppStore((s) => s.myList);
   const localAvatar = useAppStore((s) => s.avatarUrl);
   const setAvatarUrl = useAppStore((s) => s.setAvatarUrl);
-  const followTurn = useAppStore((s) => s.followTurn);
-  const setFollowTurn = useAppStore((s) => s.setFollowTurn);
+  const stubs = useAppStore((s) => s.stubs);
   const [picking, setPicking] = useState(false);
 
   const handle = me.data?.handle ?? 'you';
@@ -55,7 +59,8 @@ export default function ProfileScreen() {
       const out = await image.saveAsync({ format: SaveFormat.JPEG, compress: 0.85 });
       const url = await upload.mutateAsync(out.uri);
       setAvatarUrl(url);
-      if (api.mode === 'live') say('Photo uploaded', 'Your new photo appears once it passes our quick safety check.');
+      if (api.mode === 'live')
+        say('Photo uploaded', 'Your new photo appears once it passes our quick safety check.');
     } catch (e) {
       say('Couldn’t update your photo', e instanceof Error ? e.message : 'Try a JPG or PNG.');
     } finally {
@@ -67,93 +72,237 @@ export default function ProfileScreen() {
     if (canSellHere || showExternalJoinLink) void WebBrowser.openBrowserAsync(`${WEB_URL}/account`);
   };
 
+  // Stubs from the last seven days fill the reel: a full week of premieres, one per night.
+  const weekAgo = Date.now() - 7 * 86_400_000;
+  const thisWeek = new Set(
+    stubs.filter((t) => Date.parse(t.at) >= weekAgo).map((t) => t.at.slice(0, 10)),
+  ).size;
+
   return (
-    <Screen title="Profile" subtitle={`@${handle}`}>
-      <Panel style={styles.photoCard}>
-        <Pressable accessibilityRole="button" accessibilityLabel={avatarUrl ? 'Change profile photo' : 'Upload profile photo'} onPress={pickPhoto} disabled={picking || upload.isPending}>
-          <Avatar handle={handle} url={avatarUrl} size={96} />
+    <Screen
+      title={`@${handle}`}
+      subtitle={
+        stubs.length
+          ? `${stubs.length} ${stubs.length === 1 ? 'premiere' : 'premieres'} attended live`
+          : 'Your photo, your stubs, your list'
+      }
+      right={
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel="Settings"
+          onPress={() => router.push('/settings')}
+          style={styles.iconBtn}
+        >
+          <Icon name="settings" size={20} />
+        </Pressable>
+      }
+    >
+      <View style={styles.photoRow}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={avatarUrl ? 'Change profile photo' : 'Upload profile photo'}
+          onPress={pickPhoto}
+          disabled={picking || upload.isPending}
+        >
+          <View style={styles.ring}>
+            <Avatar handle={handle} url={avatarUrl} size={84} />
+          </View>
           <View style={styles.cam}>
-            <Icon name="camera" size={18} color={colors.ink} />
+            <Icon name="camera" size={16} color={colors.ink} />
           </View>
         </Pressable>
         <View style={{ flex: 1, gap: 8 }}>
-          <T variant="title" style={{ fontSize: 17 }}>{`@${handle}`}</T>
-          <T variant="caption">Your photo shows on your comments, in live chat, and to friends.</T>
+          <T variant="caption" style={{ fontSize: 13 }}>
+            Your photo shows on your comments, in live chat, and to friends.
+          </T>
           <View style={{ flexDirection: 'row', gap: 8, flexWrap: 'wrap' }}>
-            <Button compact kind="outline" label={avatarUrl ? 'Change photo' : 'Upload photo'} loading={picking || upload.isPending} onPress={pickPhoto} />
-            {avatarUrl ? <Button compact kind="outline" label="Remove" onPress={() => setAvatarUrl(null)} /> : null}
+            <Button
+              compact
+              kind="outline"
+              label={avatarUrl ? 'Change photo' : 'Upload photo'}
+              loading={picking || upload.isPending}
+              onPress={pickPhoto}
+            />
+            {avatarUrl ? (
+              <Button compact kind="outline" label="Remove" onPress={() => setAvatarUrl(null)} />
+            ) : null}
           </View>
         </View>
-      </Panel>
+      </View>
 
-      <Panel style={{ marginTop: 24, padding: 16, gap: 10 }}>
-        <T variant="eyebrow">Membership</T>
+      <View style={styles.memberCard}>
+        <T variant="eyebrow">{isMember ? 'Member' : 'Membership'}</T>
         {isMember ? (
           <>
-            <T variant="title" style={{ fontSize: 17 }}>Member</T>
+            <T style={styles.memberLine}>Your membership pays the cast of every show you watch.</T>
             <T variant="caption">Billed monthly on the Snippets website. Cancel anytime there.</T>
-            {canSellHere || showExternalJoinLink ? <Button compact kind="outline" label="Manage membership" onPress={manageMembership} style={{ alignSelf: 'flex-start' }} /> : null}
+            {canSellHere || showExternalJoinLink ? (
+              <Button
+                compact
+                kind="outline"
+                label="Manage membership"
+                onPress={manageMembership}
+                style={{ alignSelf: 'flex-start' }}
+              />
+            ) : null}
           </>
         ) : (
           <>
-            <T variant="title" style={{ fontSize: 17 }}>Not a member</T>
+            <T style={styles.memberLine}>
+              Every episode, the night it premieres. Paid straight to the people on screen.
+            </T>
             <T variant="caption">Episodes 1–10 of every show are free.</T>
-            <Button kind="gold" label={canSellHere ? `Become a member · ${MEMBERSHIP_PRICE_LABEL}/month` : 'About membership'} onPress={() => router.push('/join')} />
+            <Button
+              label={
+                canSellHere
+                  ? `Become a member · ${MEMBERSHIP_PRICE_LABEL}/month`
+                  : 'About membership'
+              }
+              onPress={() => router.push('/join')}
+              style={{ marginTop: 4 }}
+            />
           </>
         )}
-      </Panel>
+      </View>
 
-      {Platform.OS !== 'web' ? (
-        <Panel style={{ marginTop: 24, paddingHorizontal: 16, paddingVertical: 4 }}>
-          <SwitchRow
-            label="Smooth rotation"
-            hint="Episodes glide as you turn your phone. Off: they flip once you’ve turned past halfway."
-            value={followTurn}
-            onChange={setFollowTurn}
-          />
-        </Panel>
-      ) : null}
+      <View style={styles.section}>
+        <View style={styles.headRow}>
+          <T style={styles.h2}>Your ticket stubs</T>
+          {stubs.length ? <T variant="caption">{`${thisWeek} of 7 this week`}</T> : null}
+        </View>
+        {stubs.length ? (
+          <View style={{ gap: 10 }}>
+            {stubs.slice(0, 12).map((t) => (
+              <Stub key={t.id} stub={t} show={(shows.data ?? []).find((s) => s.id === t.showId)} />
+            ))}
+            {thisWeek < 7 ? (
+              <View style={styles.reelNote}>
+                <Reel size={34} progress={thisWeek / 7} />
+                <T variant="caption" style={{ flex: 1, fontSize: 13, color: colors.textSoft }}>
+                  {`${7 - thisWeek} more ${7 - thisWeek === 1 ? 'premiere' : 'premieres'} this week and your stubs make a full reel.`}
+                </T>
+              </View>
+            ) : (
+              <View style={styles.reelNote}>
+                <Reel size={34} progress={1} />
+                <T variant="caption" style={{ flex: 1, fontSize: 13, color: colors.gold }}>
+                  A full reel: seven premieres in seven nights.
+                </T>
+              </View>
+            )}
+          </View>
+        ) : (
+          <View style={styles.emptyStub}>
+            <Icon name="ticket" size={26} color={colors.muted} />
+            <T variant="caption" style={{ flex: 1, fontSize: 14 }}>
+              Watch a premiere live at 8/7c and its ticket stub lands here.
+            </T>
+          </View>
+        )}
+      </View>
 
-      <Pressable accessibilityRole="button" onPress={() => router.push('/friends')} style={styles.friendsRow}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityLabel="Friends. See who’s watching."
+        onPress={() => router.push('/friends')}
+        style={styles.friendsRow}
+      >
         <Icon name="friends" />
-        <T variant="label" style={{ flex: 1, fontSize: 15 }}>Friends</T>
+        <T variant="label" style={{ flex: 1, fontSize: 15 }}>
+          Friends
+        </T>
         <T variant="caption">See who’s watching</T>
       </Pressable>
 
-      <View style={{ paddingTop: 28 }}>
-        <SectionHeader title="My List" />
+      <View style={styles.section}>
+        <T style={[styles.h2, { marginBottom: 12 }]}>My List</T>
         {saved.length ? (
-          <Panel>
-            {saved.map((s, i) => (
+          <ScrollView
+            horizontal
+            showsHorizontalScrollIndicator={false}
+            style={{ marginHorizontal: -16 }}
+            contentContainerStyle={{ paddingHorizontal: 16, gap: 10 }}
+          >
+            {saved.map((s) => (
               <Pressable
                 key={s.id}
                 accessibilityRole="button"
-                onPress={() => router.push({ pathname: '/show/[showId]', params: { showId: s.id } })}
-                style={[styles.row, i > 0 && { borderTopWidth: 1, borderTopColor: colors.line }]}
+                accessibilityLabel={s.title}
+                onPress={() =>
+                  router.push({ pathname: '/show/[showId]', params: { showId: s.id } })
+                }
+                style={({ pressed }) => [{ width: 104, gap: 6 }, pressed && { opacity: 0.85 }]}
               >
-                <View style={{ width: 40, height: 54, borderRadius: 8, backgroundColor: s.color }} />
-                <View style={{ flex: 1 }}>
-                  <T variant="label" style={{ fontSize: 15 }}>{s.title}</T>
-                  <T variant="caption">{`Episodes 1–${s.latestEpisode} out now`}</T>
+                <View style={[styles.poster, { backgroundColor: s.color }]}>
+                  {coverSource(s) ? (
+                    <Image
+                      source={coverSource(s)!}
+                      style={StyleSheet.absoluteFill}
+                      contentFit="cover"
+                    />
+                  ) : null}
                 </View>
+                <T
+                  style={{
+                    fontFamily: fonts.engraved,
+                    fontSize: 11,
+                    lineHeight: 14,
+                    color: colors.goldLight,
+                  }}
+                  numberOfLines={2}
+                >
+                  {s.title}
+                </T>
               </Pressable>
             ))}
-          </Panel>
+          </ScrollView>
         ) : (
-          <Panel style={{ padding: 16 }}>
-            <T variant="caption" style={{ fontSize: 14 }}>Tap + on a show to save it here.</T>
-          </Panel>
-        )}
-      </View>
-
-      <View style={{ paddingTop: 28, gap: 10 }}>
-        {me.data && api.mode === 'live' ? (
-          <Button kind="outline" label="Sign out" onPress={() => void api.signOut().then(() => me.refetch())} />
-        ) : (
-          <Button kind="outline" label="Sign in" onPress={() => router.push('/sign-in')} />
+          <T variant="caption" style={{ fontSize: 14 }}>
+            Tap + on a show to save it here.
+          </T>
         )}
       </View>
     </Screen>
+  );
+}
+
+const STUB_DAYS = ['SUN', 'MON', 'TUE', 'WED', 'THU', 'FRI', 'SAT'];
+
+/** An engraved ticket stub for one premiere you watched live. */
+function Stub({ stub, show }: { stub: TicketStub; show?: Show }) {
+  const at = new Date(stub.at);
+  const p = easternParts(at);
+  return (
+    <View
+      accessible
+      accessibilityLabel={`Ticket stub: ${stub.showTitle}, episodes ${stub.from} to ${stub.to}, ${STUB_DAYS[p.weekday]} ${p.month}/${p.day}`}
+      style={styles.stub}
+    >
+      <Develop developed style={{ width: 66 }}>
+        <View style={[StyleSheet.absoluteFill, { backgroundColor: show?.color ?? colors.wine }]} />
+        {show && coverSource(show) ? (
+          <Image source={coverSource(show)!} style={StyleSheet.absoluteFill} contentFit="cover" />
+        ) : null}
+      </Develop>
+      <View style={styles.stubBody}>
+        <T style={styles.stubEyebrow}>Admit one · live premiere</T>
+        <T style={styles.stubTitle} numberOfLines={1}>
+          {stub.showTitle}
+        </T>
+        <T style={styles.stubLine}>{`Episodes ${stub.from}–${stub.to}`}</T>
+        {stub.cast.length ? (
+          <T
+            style={styles.stubCast}
+            numberOfLines={1}
+          >{`Cast in the chat: ${stub.cast.join(', ')}`}</T>
+        ) : null}
+      </View>
+      <View style={styles.stubDate}>
+        <T style={styles.stubDay}>{STUB_DAYS[p.weekday]}</T>
+        <T style={styles.stubNum}>{`${p.month}/${p.day}`}</T>
+        <T style={styles.stubDay}>8/7c</T>
+      </View>
+    </View>
   );
 }
 
@@ -163,8 +312,115 @@ function say(title: string, message: string) {
 }
 
 const styles = StyleSheet.create({
-  friendsRow: { marginTop: 24, flexDirection: 'row', alignItems: 'center', gap: 12, padding: 16, borderRadius: 18, backgroundColor: colors.surface, borderWidth: 1, borderColor: '#24242C' },
-  photoCard: { marginTop: 14, padding: 16, flexDirection: 'row', alignItems: 'center', gap: 16 },
-  cam: { position: 'absolute', right: -2, bottom: -2, width: 36, height: 36, borderRadius: 18, backgroundColor: colors.gold, borderWidth: 3, borderColor: colors.ink, alignItems: 'center', justifyContent: 'center' },
-  row: { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12 },
+  iconBtn: {
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.surface,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  photoRow: { marginTop: 10, flexDirection: 'row', alignItems: 'center', gap: 16 },
+  ring: { padding: 3, borderRadius: 48, borderWidth: 2, borderColor: colors.gold },
+  cam: {
+    position: 'absolute',
+    right: -2,
+    bottom: -2,
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: colors.gold,
+    borderWidth: 3,
+    borderColor: colors.ink,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  memberCard: {
+    marginTop: 22,
+    padding: 16,
+    gap: 8,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.gold,
+    experimental_backgroundImage: 'linear-gradient(135deg, #3A2A0E 0%, #1E1710 65%)',
+  },
+  memberLine: { fontFamily: fonts.serifItalic, fontSize: 19, lineHeight: 24, color: colors.text },
+  section: { paddingTop: 28 },
+  headRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'baseline',
+    marginBottom: 12,
+  },
+  h2: {
+    fontFamily: fonts.engraved,
+    fontSize: 12,
+    letterSpacing: 2.6,
+    textTransform: 'uppercase',
+    color: colors.text,
+  },
+  stub: {
+    flexDirection: 'row',
+    height: 92,
+    borderRadius: 10,
+    overflow: 'hidden',
+    backgroundColor: '#F3EAD8',
+  },
+  stubBody: {
+    flex: 1,
+    paddingHorizontal: 12,
+    paddingVertical: 9,
+    gap: 2,
+    borderRightWidth: 2,
+    borderRightColor: '#C9B48E',
+    borderStyle: 'dashed',
+  },
+  stubEyebrow: {
+    fontFamily: fonts.engraved,
+    fontSize: 8.5,
+    letterSpacing: 1.8,
+    textTransform: 'uppercase',
+    color: '#8A5A10',
+  },
+  stubTitle: { fontFamily: fonts.engraved, fontSize: 14, color: '#2A1D10' },
+  stubLine: { fontFamily: fonts.bodyBold, fontSize: 11, color: '#2A1D10' },
+  stubCast: { fontFamily: fonts.body, fontSize: 10, color: '#6B5636' },
+  stubDate: { width: 62, alignItems: 'center', justifyContent: 'center', gap: 1 },
+  stubDay: { fontFamily: fonts.bodyHeavy, fontSize: 10, color: '#8A5A10' },
+  stubNum: { fontFamily: fonts.serif, fontSize: 22, lineHeight: 26, color: '#2A1D10' },
+  reelNote: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    padding: 12,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderStyle: 'dashed',
+  },
+  emptyStub: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 16,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.line,
+    borderStyle: 'dashed',
+  },
+  friendsRow: {
+    marginTop: 24,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 16,
+    minHeight: 56,
+    borderRadius: radius.md,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: colors.line,
+  },
+  poster: { width: 104, height: 148, borderRadius: 8, overflow: 'hidden' },
 });

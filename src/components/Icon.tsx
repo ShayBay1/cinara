@@ -3,9 +3,37 @@ import Svg, { Circle, Path, Rect } from 'react-native-svg';
 import { colors } from '@/theme/tokens';
 
 export type IconName =
-  | 'home' | 'schedule' | 'friends' | 'profile' | 'play' | 'plus' | 'check' | 'bell' | 'close'
-  | 'back' | 'heart' | 'chat' | 'chat-off' | 'share' | 'gift' | 'send' | 'lock' | 'eye' | 'camera'
-  | 'more' | 'replay' | 'pause' | 'back10' | 'forward10' | 'next' | 'turn' | 'live';
+  | 'home'
+  | 'schedule'
+  | 'friends'
+  | 'profile'
+  | 'play'
+  | 'plus'
+  | 'check'
+  | 'bell'
+  | 'close'
+  | 'back'
+  | 'heart'
+  | 'chat'
+  | 'chat-off'
+  | 'share'
+  | 'gift'
+  | 'send'
+  | 'lock'
+  | 'eye'
+  | 'camera'
+  | 'more'
+  | 'replay'
+  | 'pause'
+  | 'back10'
+  | 'forward10'
+  | 'next'
+  | 'turn'
+  | 'live'
+  | 'reel'
+  | 'search'
+  | 'settings'
+  | 'ticket';
 
 interface Props {
   name: IconName;
@@ -16,7 +44,13 @@ interface Props {
 
 /** Stroke icons drawn to match the mock-up. Decorative: callers label the button. */
 export function Icon({ name, size = 22, color = colors.text, filled = false }: Props) {
-  const common = { stroke: color, strokeWidth: 2, strokeLinecap: 'round' as const, strokeLinejoin: 'round' as const, fill: 'none' };
+  const common = {
+    stroke: color,
+    strokeWidth: 2,
+    strokeLinecap: 'round' as const,
+    strokeLinejoin: 'round' as const,
+    fill: 'none',
+  };
   const fill = filled ? color : 'none';
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" accessible={false}>
@@ -30,7 +64,10 @@ export function Icon({ name, size = 22, color = colors.text, filled = false }: P
       {name === 'friends' && (
         <>
           <Circle {...common} cx={9} cy={8} r={3.5} />
-          <Path {...common} d="M2.5 20c1-3.5 3.5-5.5 6.5-5.5s5.5 2 6.5 5.5M16 4.5a3.5 3.5 0 0 1 0 7M18 14.8c1.8.7 3 2.5 3.5 5.2" />
+          <Path
+            {...common}
+            d="M2.5 20c1-3.5 3.5-5.5 6.5-5.5s5.5 2 6.5 5.5M16 4.5a3.5 3.5 0 0 1 0 7M18 14.8c1.8.7 3 2.5 3.5 5.2"
+          />
         </>
       )}
       {name === 'profile' && (
@@ -51,7 +88,11 @@ export function Icon({ name, size = 22, color = colors.text, filled = false }: P
       {name === 'close' && <Path {...common} strokeWidth={2.2} d="M6 6l12 12M18 6L6 18" />}
       {name === 'back' && <Path {...common} strokeWidth={2.2} d="M15 5l-7 7 7 7" />}
       {name === 'heart' && (
-        <Path {...common} fill={fill} d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z" />
+        <Path
+          {...common}
+          fill={fill}
+          d="M12 20s-7-4.4-7-10a4 4 0 0 1 7-2.6A4 4 0 0 1 19 10c0 5.6-7 10-7 10z"
+        />
       )}
       {(name === 'chat' || name === 'chat-off') && (
         <>
@@ -59,11 +100,16 @@ export function Icon({ name, size = 22, color = colors.text, filled = false }: P
           {name === 'chat-off' && <Path {...common} d="M3 3l18 18" />}
         </>
       )}
-      {name === 'share' && <Path {...common} d="M12 3v12M7 8l5-5 5 5M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6" />}
+      {name === 'share' && (
+        <Path {...common} d="M12 3v12M7 8l5-5 5 5M5 13v6a2 2 0 0 0 2 2h10a2 2 0 0 0 2-2v-6" />
+      )}
       {name === 'gift' && (
         <>
           <Rect {...common} x={3} y={9} width={18} height={12} rx={1.5} />
-          <Path {...common} d="M12 9v12M3 13h18M12 9c-2-4-6-4-6-1.5S10 9 12 9zM12 9c2-4 6-4 6-1.5S14 9 12 9z" />
+          <Path
+            {...common}
+            d="M12 9v12M3 13h18M12 9c-2-4-6-4-6-1.5S10 9 12 9zM12 9c2-4 6-4 6-1.5S14 9 12 9z"
+          />
         </>
       )}
       {name === 'send' && <Path {...common} strokeWidth={2.4} d="M5 12h14M13 6l6 6-6 6" />}
@@ -103,15 +149,56 @@ export function Icon({ name, size = 22, color = colors.text, filled = false }: P
       )}
       {name === 'turn' && (
         <>
-          <Rect x={9.4} y={6.5} width={5.2} height={11} rx={1.3} transform="rotate(-45 12 12)" {...common} strokeWidth={1.6} />
-          <Path {...common} strokeWidth={1.6} d="M2.6 8.5A10 10 0 0 1 8.5 2.6M6.2 1.9l2.3.7-.8 2.2M21.4 15.5A10 10 0 0 1 15.5 21.4M17.8 22.1l-2.3-.7.8-2.2" />
+          <Rect
+            x={9.4}
+            y={6.5}
+            width={5.2}
+            height={11}
+            rx={1.3}
+            transform="rotate(-45 12 12)"
+            {...common}
+            strokeWidth={1.6}
+          />
+          <Path
+            {...common}
+            strokeWidth={1.6}
+            d="M2.6 8.5A10 10 0 0 1 8.5 2.6M6.2 1.9l2.3.7-.8 2.2M21.4 15.5A10 10 0 0 1 15.5 21.4M17.8 22.1l-2.3-.7.8-2.2"
+          />
         </>
       )}
       {name === 'live' && (
         <>
           <Circle cx={12} cy={12} r={2.6} fill={color} />
-          <Path {...common} d="M7.8 7.8a6 6 0 0 0 0 8.4M16.2 7.8a6 6 0 0 1 0 8.4M4.9 4.9a10 10 0 0 0 0 14.2M19.1 4.9a10 10 0 0 1 0 14.2" />
+          <Path
+            {...common}
+            d="M7.8 7.8a6 6 0 0 0 0 8.4M16.2 7.8a6 6 0 0 1 0 8.4M4.9 4.9a10 10 0 0 0 0 14.2M19.1 4.9a10 10 0 0 1 0 14.2"
+          />
         </>
+      )}
+      {name === 'reel' && (
+        <>
+          <Circle {...common} strokeWidth={1.6} cx={12} cy={12} r={9.5} />
+          <Rect {...common} strokeWidth={1.6} x={9} y={9} width={6} height={6} fill={fill} />
+          <Path {...common} strokeWidth={1.4} d="M2.8 9H9M15 9h6.2M2.8 15H9M15 15h6.2" />
+        </>
+      )}
+      {name === 'search' && (
+        <>
+          <Circle {...common} cx={11} cy={11} r={7} />
+          <Path {...common} d="M20 20l-3.5-3.5" />
+        </>
+      )}
+      {name === 'settings' && (
+        <>
+          <Circle {...common} cx={12} cy={12} r={3} />
+          <Path
+            {...common}
+            d="M12 2.5v3M12 18.5v3M2.5 12h3M18.5 12h3M5.3 5.3l2.1 2.1M16.6 16.6l2.1 2.1M5.3 18.7l2.1-2.1M16.6 7.4l2.1-2.1"
+          />
+        </>
+      )}
+      {name === 'ticket' && (
+        <Path {...common} d="M3 7h18v3a2 2 0 0 0 0 4v3H3v-3a2 2 0 0 0 0-4zM14 7v10" />
       )}
       {name === 'replay' && <Path {...common} d="M3 12a9 9 0 1 0 3-6.7M3 4v5h5" />}
     </Svg>
@@ -122,7 +209,14 @@ export function Icon({ name, size = 22, color = colors.text, filled = false }: P
 export function GiftGlyph({ path, size = 22 }: { path: string; size?: number }) {
   return (
     <Svg width={size} height={size} viewBox="0 0 24 24" accessible={false}>
-      <Path d={path} stroke={colors.ink} strokeWidth={2} strokeLinecap="round" strokeLinejoin="round" fill="none" />
+      <Path
+        d={path}
+        stroke={colors.ink}
+        strokeWidth={2}
+        strokeLinecap="round"
+        strokeLinejoin="round"
+        fill="none"
+      />
     </Svg>
   );
 }

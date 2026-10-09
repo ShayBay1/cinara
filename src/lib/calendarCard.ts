@@ -1,4 +1,4 @@
-import * as Calendar from 'expo-calendar';
+import * as Calendar from 'expo-calendar/legacy';
 import * as Linking from 'expo-linking';
 import { Platform } from 'react-native';
 
@@ -32,7 +32,7 @@ export async function addPremiereToCalendar(
   if (!next) return 'unavailable';
   const link = Linking.createURL(`/live/${show.id}`);
   try {
-    const result = await Calendar.createEventInAppAsync({
+    const result = await Calendar.createEventInCalendarAsync({
       title: `${show.title} · live premiere`,
       startDate: next.at,
       endDate: new Date(next.at.getTime() + PREMIERE_MINUTES * 60 * 1000),

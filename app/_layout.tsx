@@ -21,6 +21,7 @@ import { Platform, View } from 'react-native';
 import { LaunchIntro } from '@/components/launch/LaunchIntro';
 
 import { lockUpright } from '@/lib/orientationLock';
+import { useAppStore } from '@/store/useAppStore';
 import { colors } from '@/theme/tokens';
 
 void SplashScreen.preventAutoHideAsync();
@@ -53,11 +54,12 @@ export default function RootLayout() {
   }, [fontsLoaded, fontError, introReady, introDone]);
 
   useNotificationDeepLinks();
+  useFirstRun(introDone);
 
   if (!fontsLoaded && !fontError) return null;
 
   return (
-    <View style={{ flex: 1, backgroundColor: '#000' }}>
+    <View style={{ flex: 1, backgroundColor: colors.ink }}>
       <QueryClientProvider client={queryClient}>
         <StatusBar style="light" />
         <Stack
@@ -80,11 +82,33 @@ export default function RootLayout() {
           <Stack.Screen name="comments/[showId]/[episode]" options={{ presentation: 'modal' }} />
           <Stack.Screen name="join" options={{ presentation: 'modal' }} />
           <Stack.Screen name="sign-in" options={{ presentation: 'modal' }} />
+          <Stack.Screen name="search" options={{ animation: 'fade' }} />
+          <Stack.Screen name="cast/[showId]/[index]" options={{ animation: 'slide_from_right' }} />
+          <Stack.Screen name="settings" options={{ animation: 'slide_from_right' }} />
+          <Stack.Screen
+            name="welcome"
+            options={{ presentation: 'fullScreenModal', animation: 'fade' }}
+          />
         </Stack>
       </QueryClientProvider>
       {introDone ? null : <LaunchIntro onReady={onIntroReady} onDone={onIntroDone} />}
     </View>
   );
+}
+
+/** First run: once the launch animation has finished, show "Pick three" to new viewers. */
+function useFirstRun(introDone: boolean) {
+  useEffect(() => {
+    if (!introDone) return;
+    const go = () => {
+      if (!useAppStore.getState().onboarded) router.push('/welcome');
+    };
+    if (useAppStore.persist.hasHydrated()) {
+      go();
+      return;
+    }
+    return useAppStore.persist.onFinishHydration(go);
+  }, [introDone]);
 }
 
 /** Opens the live premiere when someone taps a premiere reminder. */

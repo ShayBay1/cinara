@@ -1,24 +1,27 @@
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
-import Svg, { Circle, Path } from 'react-native-svg';
 
+import { Icon } from '@/components/Icon';
+import { Reel } from '@/components/Reel';
 import { T } from '@/components/ui';
 import type { Show } from '@/data';
 import { coverSource } from '@/data/covers';
 import { useReminder } from '@/hooks/useReminder';
 import { useLaunchFrame } from '@/lib/launchFrame';
-import { LIVE_WINDOW_MS, premiereFor, type Premiere } from '@/lib/premieres';
-import { capitalize, dayLabel } from '@/lib/schedule';
-import { fonts, home } from '@/theme/tokens';
+import { countdownParts, premiereFor, premiereStage, type Premiere } from '@/lib/premieres';
+import { capitalize, dayLabel, SLOT_LABEL } from '@/lib/schedule';
+import { colors, fonts, home } from '@/theme/tokens';
 
 const LOGO = require('../../../assets/launch/home-logo.png');
 
 const openShow = (show: Show) =>
   router.push({ pathname: '/show/[showId]', params: { showId: show.id } });
+const openLive = (show: Show) =>
+  router.push({ pathname: '/live/[showId]', params: { showId: show.id } });
 
 /**
- * The top of Home: logo, search, tonight's premiere card and the Now streaming row.
+ * The top of Home: logo, search, the Tonight card and the Now streaming row.
  * Every position is in the launch animation's mock units (see launchFrame), so this lines up
  * with the video's last frame and the film lands exactly on the card.
  */
@@ -34,7 +37,7 @@ export function HomeTop({
   now: Date;
 }) {
   const { u, x, y } = useLaunchFrame();
-  // The featured title (The Making of Zipline) owns the card the launch film lands on; otherwise tonight's premiere.
+  // The featured title owns the card the launch film lands on; otherwise tonight's premiere.
   const show = featured ?? premiere?.show;
   const cardPremiere = featured ? premiereFor(featured, now) : premiere;
 
@@ -54,47 +57,38 @@ export function HomeTop({
           contentFit="contain"
           accessibilityLabel="Snippets"
         />
-        <View
+        <Pressable
           accessibilityRole="search"
-          style={{
+          accessibilityLabel="Search shows, actors and tropes"
+          onPress={() => router.push('/search')}
+          style={({ pressed }) => ({
             position: 'absolute',
             left: x(96),
             width: u(179),
             top: y(60),
-            height: u(40),
+            height: Math.max(44, u(40)),
             flexDirection: 'row',
             alignItems: 'center',
             gap: u(8),
             paddingHorizontal: u(13),
-            backgroundColor: home.field,
+            backgroundColor: pressed ? colors.surfaceRaised : home.field,
             borderWidth: 1,
             borderColor: home.fieldLine,
             borderRadius: u(8),
-          }}
+          })}
         >
-          <Svg
-            width={u(16)}
-            height={u(16)}
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke={home.fieldIcon}
-            strokeWidth={2}
-            strokeLinecap="round"
-          >
-            <Circle cx={11} cy={11} r={7} />
-            <Path d="M20 20l-3.5-3.5" />
-          </Svg>
+          <Icon name="search" size={u(16)} color={home.fieldIcon} />
           <T
             style={{ fontFamily: fonts.body, fontSize: u(13), color: home.placeholder }}
             numberOfLines={1}
           >
             Search shows and actors
           </T>
-        </View>
+        </Pressable>
       </View>
 
       {show ? (
-        <PremiereCard show={show} premiere={cardPremiere} now={now} />
+        <TonightCard show={show} premiere={cardPremiere} now={now} />
       ) : (
         <View style={{ height: u(300) }} />
       )}
@@ -124,13 +118,15 @@ export function HomeTop({
               <Pressable
                 key={s.id}
                 accessibilityRole="button"
-                accessibilityLabel={s.title}
+                accessibilityLabel={`${s.title}. ${s.genre}`}
                 onPress={() => openShow(s)}
                 style={({ pressed }) => [
                   {
                     width: u(80),
                     height: u(130),
+                    borderRadius: 6,
                     overflow: 'hidden',
+                    justifyContent: 'flex-end',
                     experimental_backgroundImage: `linear-gradient(170deg, ${s.color}, ${home.bg})`,
                   },
                   pressed && { opacity: 0.85 },
@@ -144,6 +140,30 @@ export function HomeTop({
                     transition={200}
                   />
                 ) : null}
+                <View
+                  style={[
+                    StyleSheet.absoluteFill,
+                    {
+                      experimental_backgroundImage:
+                        'linear-gradient(180deg, rgba(21,16,11,0) 45%, rgba(21,16,11,0.92) 100%)',
+                    },
+                  ]}
+                />
+                <T
+                  style={[
+                    styles.label,
+                    {
+                      margin: u(6),
+                      fontSize: u(7.5),
+                      lineHeight: u(10),
+                      letterSpacing: u(7.5) * 0.08,
+                      color: home.goldLight,
+                    },
+                  ]}
+                  numberOfLines={3}
+                >
+                  {s.title}
+                </T>
               </Pressable>
             ))}
           </ScrollView>
@@ -153,8 +173,11 @@ export function HomeTop({
   );
 }
 
-/** Tonight's premiere (or the featured title): the card the launch film lands on. */
-function PremiereCard({
+/**
+ * The Tonight card: the card the launch film lands on. It changes with the clock: a countdown,
+ * Doors open from 7:45, Live now, then the after-chat. One solid gold action.
+ */
+function TonightCard({
   show,
   premiere,
   now,
@@ -165,28 +188,40 @@ function PremiereCard({
 }) {
   const { u, x } = useLaunchFrame();
   const reminder = useReminder(show);
+  const stage = premiere ? premiereStage(premiere.at, now) : null;
   const left = premiere ? premiere.at.getTime() - now.getTime() : 0;
-  const live = !!premiere && left <= 0 && left > -LIVE_WINDOW_MS;
-  const eyebrow = !premiere
-    ? 'Now streaming'
-    : live
-      ? 'Live now'
-      : `${capitalize(dayLabel(premiere.at, now))} at 8 · 7 Central.`;
-  const action = !premiere
-    ? {
-        label: 'Watch now',
-        onPress: () =>
-          router.push({
-            pathname: '/watch/[showId]/[episode]',
-            params: { showId: show.id, episode: '1' },
-          }),
-      }
-    : live
+  const c = countdownParts(left);
+
+  const eyebrow =
+    stage === null
+      ? 'Now streaming'
+      : stage === 'countdown'
+        ? `${capitalize(dayLabel(premiere!.at, now))} at ${SLOT_LABEL}`
+        : stage === 'doors'
+          ? `Doors open · live at ${SLOT_LABEL}`
+          : stage === 'live'
+            ? 'Live now'
+            : 'After-chat open';
+  const action =
+    stage === null
       ? {
-          label: 'Watch live',
-          onPress: () => router.push({ pathname: '/live/[showId]', params: { showId: show.id } }),
+          label: 'Watch now',
+          onPress: () =>
+            router.push({
+              pathname: '/watch/[showId]/[episode]',
+              params: { showId: show.id, episode: '1' },
+            }),
         }
-      : { label: reminder.isOn ? 'Reminder on' : 'Notify me', onPress: reminder.toggle };
+      : stage === 'countdown'
+        ? { label: reminder.isOn ? 'Reminder on' : 'Remind me', onPress: reminder.toggle }
+        : stage === 'doors'
+          ? { label: 'Join the lobby', onPress: () => openLive(show) }
+          : stage === 'live'
+            ? { label: 'Watch live', onPress: () => openLive(show) }
+            : { label: 'Join the after-chat', onPress: () => openLive(show) };
+  // The countdown reel shows for the last 24 hours; its ring empties as 8/7c gets closer.
+  const showReel = (stage === 'countdown' && left < 86_400_000) || stage === 'doors';
+  const btnH = Math.max(44, u(32));
 
   return (
     <Pressable
@@ -222,22 +257,55 @@ function PremiereCard({
           },
         ]}
       />
-      <T
-        style={[
-          styles.label,
-          {
-            position: 'absolute',
-            left: u(13),
-            top: u(13),
-            fontSize: u(9),
-            lineHeight: u(13),
-            letterSpacing: u(9) * 0.26,
-            color: home.gold,
-          },
-        ]}
+      <View
+        style={{
+          position: 'absolute',
+          left: u(13),
+          top: u(13),
+          flexDirection: 'row',
+          alignItems: 'center',
+          gap: u(5),
+        }}
       >
-        {eyebrow}
-      </T>
+        {stage === 'live' ? (
+          <View
+            style={{ width: u(6), height: u(6), borderRadius: u(3), backgroundColor: colors.live }}
+          />
+        ) : null}
+        <T
+          style={[
+            styles.label,
+            {
+              fontSize: u(9),
+              lineHeight: u(13),
+              letterSpacing: u(9) * 0.26,
+              color: stage === 'live' ? colors.liveSoft : home.gold,
+            },
+          ]}
+        >
+          {eyebrow}
+        </T>
+      </View>
+      {showReel ? (
+        <View
+          style={{ position: 'absolute', right: u(10), top: u(9), alignItems: 'center', gap: u(2) }}
+        >
+          <Reel
+            size={u(40)}
+            progress={1 - Math.min(1, left / 86_400_000)}
+            spinning={stage === 'doors'}
+            label={`${c.h} hours ${c.m} minutes until the premiere`}
+          />
+          <T
+            style={{
+              fontFamily: fonts.bodyHeavy,
+              fontSize: u(9),
+              color: colors.text,
+              fontVariant: ['tabular-nums'],
+            }}
+          >{`${c.h}:${c.m}:${c.s}`}</T>
+        </View>
+      ) : null}
       <T
         style={[
           styles.label,
@@ -245,7 +313,7 @@ function PremiereCard({
             position: 'absolute',
             left: u(13),
             right: u(13),
-            bottom: u(55),
+            bottom: u(13) + btnH + u(10),
             fontSize: u(19),
             lineHeight: u(26),
             letterSpacing: u(19) * 0.02,
@@ -260,31 +328,34 @@ function PremiereCard({
       </T>
       <Pressable
         accessibilityRole="button"
-        accessibilityState={{ selected: reminder.isOn }}
+        accessibilityState={{
+          selected: stage === 'countdown' ? reminder.isOn : undefined,
+          busy: reminder.busy,
+        }}
         onPress={action.onPress}
         disabled={reminder.busy}
-        style={({ pressed }) => [
-          {
-            position: 'absolute',
-            left: u(13),
-            right: u(13),
-            bottom: u(13),
-            height: u(32),
-            borderWidth: 1,
-            borderColor: home.parchment,
-            alignItems: 'center',
-            justifyContent: 'center',
-          },
-          pressed && { backgroundColor: 'rgba(243,234,216,0.12)' },
-        ]}
+        style={({ pressed }) => ({
+          position: 'absolute',
+          left: u(13),
+          right: u(13),
+          bottom: u(13),
+          height: btnH,
+          borderRadius: btnH / 2,
+          alignItems: 'center',
+          justifyContent: 'center',
+          backgroundColor:
+            stage === 'countdown' && reminder.isOn ? 'rgba(255,184,0,0.16)' : home.gold,
+          borderWidth: stage === 'countdown' && reminder.isOn ? 1 : 0,
+          borderColor: home.gold,
+          opacity: pressed ? 0.85 : 1,
+        })}
       >
         <T
           style={{
-            fontFamily: fonts.bodyBold,
-            fontSize: u(10),
-            letterSpacing: u(10) * 0.08,
-            textTransform: 'uppercase',
-            color: home.parchment,
+            fontFamily: fonts.bodyHeavy,
+            fontSize: u(11),
+            letterSpacing: u(11) * 0.04,
+            color: stage === 'countdown' && reminder.isOn ? home.gold : home.bg,
           }}
         >
           {action.label}

@@ -1,6 +1,6 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { KeyboardAvoidingView, Platform, StyleSheet, TextInput, View } from 'react-native';
 
 import { Button, IconButton, T } from '@/components/ui';
@@ -16,6 +16,13 @@ export default function SignInScreen() {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const validEmail = /^\S+@\S+\.\S+$/.test(email.trim());
+  // "Resend code" unlocks 30 seconds after a code is sent.
+  const [resendIn, setResendIn] = useState(0);
+  useEffect(() => {
+    if (resendIn <= 0) return;
+    const id = setTimeout(() => setResendIn((n) => n - 1), 1000);
+    return () => clearTimeout(id);
+  }, [resendIn]);
 
   const run = async (fn: () => Promise<void>) => {
     setBusy(true);
@@ -30,13 +37,20 @@ export default function SignInScreen() {
   };
 
   return (
-    <KeyboardAvoidingView style={styles.fill} behavior={Platform.OS === 'ios' ? 'padding' : undefined}>
+    <KeyboardAvoidingView
+      style={styles.fill}
+      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
+    >
       <View style={{ alignSelf: 'flex-end' }}>
         <IconButton icon="close" label="Close" onPress={() => router.back()} />
       </View>
-      <T variant="serif" style={{ fontSize: 34, lineHeight: 38 }}>{step === 'email' ? 'Sign in to Snippets' : 'Check your email'}</T>
+      <T variant="serif" style={{ fontSize: 34, lineHeight: 38 }}>
+        {step === 'email' ? 'Continue with email' : 'Check your email'}
+      </T>
       <T style={{ color: colors.textSoft }}>
-        {step === 'email' ? 'We’ll email you a 6-digit code. No password needed.' : `Enter the code we sent to ${email.trim()}.`}
+        {step === 'email'
+          ? 'New here or coming back, it’s the same: we email you a 6-digit code. No password.'
+          : `Enter the code we sent to ${email.trim()}.`}
       </T>
       {step === 'email' ? (
         <TextInput
@@ -64,9 +78,24 @@ export default function SignInScreen() {
           style={[styles.input, { letterSpacing: 6, fontSize: 22 }]}
         />
       )}
-      {error ? <T variant="caption" style={{ color: colors.accent }}>{error}</T> : null}
+      {error ? (
+        <T variant="caption" style={{ color: colors.liveSoft }} accessibilityLiveRegion="polite">
+          {error}
+        </T>
+      ) : null}
       {step === 'email' ? (
-        <Button label="Email me a code" disabled={!validEmail} loading={busy} onPress={() => run(async () => { await api.sendSignInCode(email.trim()); setStep('code'); })} />
+        <Button
+          label="Email me a code"
+          disabled={!validEmail}
+          loading={busy}
+          onPress={() =>
+            run(async () => {
+              await api.sendSignInCode(email.trim());
+              setStep('code');
+              setResendIn(30);
+            })
+          }
+        />
       ) : (
         <Button
           label="Sign in"
@@ -81,12 +110,37 @@ export default function SignInScreen() {
           }
         />
       )}
-      {step === 'code' ? <Button kind="outline" label="Use a different email" onPress={() => setStep('email')} /> : null}
+      {step === 'code' ? (
+        <Button
+          kind="outline"
+          label={resendIn > 0 ? `Resend code in ${resendIn}s` : 'Resend code'}
+          disabled={resendIn > 0 || busy}
+          onPress={() =>
+            run(async () => {
+              await api.sendSignInCode(email.trim());
+              setResendIn(30);
+            })
+          }
+        />
+      ) : null}
+      {step === 'code' ? (
+        <Button kind="ghost" label="Use a different email" onPress={() => setStep('email')} />
+      ) : null}
     </KeyboardAvoidingView>
   );
 }
 
 const styles = StyleSheet.create({
-  fill: { flex: 1, backgroundColor: colors.surface, padding: 20, gap: 14 },
-  input: { height: 52, borderRadius: radius.md, borderWidth: 1, borderColor: '#3A3A44', backgroundColor: '#0C0C10', paddingHorizontal: 16, color: colors.text, fontFamily: fonts.body, fontSize: 16 },
+  fill: { flex: 1, backgroundColor: colors.ink, padding: 20, gap: 14 },
+  input: {
+    height: 52,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: '#3A2E20',
+    backgroundColor: '#110D09',
+    paddingHorizontal: 16,
+    color: colors.text,
+    fontFamily: fonts.body,
+    fontSize: 16,
+  },
 });

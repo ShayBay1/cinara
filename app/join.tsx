@@ -35,34 +35,68 @@ export default function JoinScreen() {
   };
 
   return (
-    <ScrollView style={{ flex: 1, backgroundColor: colors.surface }} contentContainerStyle={[styles.body, { paddingBottom: insets.bottom + 24 }]}>
+    <ScrollView
+      style={{ flex: 1, backgroundColor: colors.ink }}
+      contentContainerStyle={[styles.body, { paddingBottom: insets.bottom + 24 }]}
+    >
       <View style={{ alignSelf: 'flex-end' }}>
         <IconButton icon="close" label="Close" onPress={() => router.back()} />
       </View>
-      <T variant="eyebrow" style={{ color: colors.gold }}>{ep > FREE_EPISODES ? 'Free episodes complete' : 'Snippets membership'}</T>
-      <T variant="serif" style={{ fontSize: 36, lineHeight: 38 }}>{ep > FREE_EPISODES ? `Episode ${ep} is waiting.` : 'Every show. Every episode.'}</T>
-      <T style={{ color: colors.textSoft, fontSize: 15 }}>Members watch every episode the night it premieres. Your membership pays the actors directly.</T>
+      <T variant="eyebrow" style={{ color: colors.gold }}>
+        {ep > FREE_EPISODES ? 'Free episodes complete' : 'Snippets membership'}
+      </T>
+      <T variant="serif" style={{ fontSize: 36, lineHeight: 38 }}>
+        {ep > FREE_EPISODES ? `Episode ${ep} is waiting.` : 'Every show. Every episode.'}
+      </T>
+      <T style={{ color: colors.textSoft, fontSize: 15 }}>
+        Members watch every episode the night it premieres. Your membership pays the actors
+        directly.
+      </T>
 
       {canSellHere ? (
         <>
           <View style={{ flexDirection: 'row', alignItems: 'baseline', gap: 6 }}>
-            <T style={{ fontFamily: fonts.display, fontSize: 40, lineHeight: 44, color: colors.gold }}>{MEMBERSHIP_PRICE_LABEL}</T>
-            <T variant="label" style={{ color: colors.textSoft }}>/ month</T>
+            <T
+              style={{
+                fontFamily: fonts.display,
+                fontSize: 40,
+                lineHeight: 44,
+                color: colors.gold,
+              }}
+            >
+              {MEMBERSHIP_PRICE_LABEL}
+            </T>
+            <T variant="label" style={{ color: colors.textSoft }}>
+              / month
+            </T>
           </View>
           <Button label="Continue to checkout" loading={loading} onPress={startCheckout} />
-          {error ? <T variant="caption" style={{ color: colors.accent }}>{error}</T> : null}
-          <T variant="caption" style={{ textAlign: 'center' }}>Paid securely through Stripe. Renews monthly. Cancel anytime in your account.</T>
+          {error ? (
+            <T variant="caption" style={{ color: colors.liveSoft }}>
+              {error}
+            </T>
+          ) : null}
+          <T variant="caption" style={{ textAlign: 'center' }}>
+            Paid securely through Stripe. Renews monthly. Cancel anytime in your account.
+          </T>
         </>
       ) : (
         <>
           <T style={{ color: colors.textSoft, fontSize: 15 }}>
             Already a member? Sign in with the email you used to join and every episode unlocks.
           </T>
-          <Button label="Sign in" onPress={() => router.replace('/sign-in')} />
+          <Button label="Continue with email" onPress={() => router.replace('/sign-in')} />
           {showExternalJoinLink ? (
-            <Button kind="outline" label="Join on the Snippets website" onPress={() => void WebBrowser.openBrowserAsync(`${WEB_URL}/join`)} />
+            <Button
+              kind="outline"
+              label="Join on the Snippets website"
+              onPress={() => void WebBrowser.openBrowserAsync(`${WEB_URL}/join`)}
+            />
           ) : null}
-          <T variant="caption" style={{ textAlign: 'center' }}>{`Episodes 1–${FREE_EPISODES} of every show are free.`}</T>
+          <T
+            variant="caption"
+            style={{ textAlign: 'center' }}
+          >{`Episodes 1–${FREE_EPISODES} of every show are free.`}</T>
         </>
       )}
       <Button kind="outline" label="Not now" onPress={() => router.back()} />
