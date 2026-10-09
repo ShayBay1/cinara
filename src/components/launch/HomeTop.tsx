@@ -9,8 +9,10 @@ import type { Show } from '@/data';
 import { coverSource } from '@/data/covers';
 import { useReminder } from '@/hooks/useReminder';
 import { useLaunchFrame } from '@/lib/launchFrame';
+import { playEpisode } from '@/lib/play';
 import { countdownParts, premiereFor, premiereStage, type Premiere } from '@/lib/premieres';
 import { capitalize, dayLabel, SLOT_LABEL } from '@/lib/schedule';
+import { useAppStore } from '@/store/useAppStore';
 import { colors, fonts, home } from '@/theme/tokens';
 
 const LOGO = require('../../../assets/launch/home-logo.png');
@@ -188,6 +190,10 @@ function TonightCard({
 }) {
   const { u, x } = useLaunchFrame();
   const reminder = useReminder(show);
+  const savedEp = useAppStore((s) => {
+    const p = s.progress[show.id];
+    return p && p.episode <= show.latestEpisode ? p.episode : undefined;
+  });
   const stage = premiere ? premiereStage(premiere.at, now) : null;
   const left = premiere ? premiere.at.getTime() - now.getTime() : 0;
   const c = countdownParts(left);
@@ -206,11 +212,7 @@ function TonightCard({
     stage === null
       ? {
           label: 'Watch now',
-          onPress: () =>
-            router.push({
-              pathname: '/watch/[showId]/[episode]',
-              params: { showId: show.id, episode: '1' },
-            }),
+          onPress: () => playEpisode(show.id, savedEp ?? 1),
         }
       : stage === 'countdown'
         ? { label: reminder.isOn ? 'Reminder on' : 'Remind me', onPress: reminder.toggle }

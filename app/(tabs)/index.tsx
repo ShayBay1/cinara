@@ -13,6 +13,7 @@ import { useComingSoon, useFriends, useShows } from '@/hooks/queries';
 import { useNow } from '@/hooks/useNow';
 import { soonestPremiere } from '@/lib/premieres';
 import { dropOf } from '@/lib/schedule';
+import { playEpisode } from '@/lib/play';
 import { useAppStore } from '@/store/useAppStore';
 import { colors, fonts, home, radius } from '@/theme/tokens';
 
@@ -106,12 +107,7 @@ function ContinueWatching({ shows }: { shows: Show[] }) {
               key={show.id}
               accessibilityRole="button"
               accessibilityLabel={`Continue ${show.title}, episode ${p.episode}${left > 0 ? `, ${fmt(left)} left` : ''}`}
-              onPress={() =>
-                router.push({
-                  pathname: '/watch/[showId]/[episode]',
-                  params: { showId: show.id, episode: String(p.episode) },
-                })
-              }
+              onPress={() => playEpisode(show.id, p.episode)}
               style={({ pressed }) => [{ width: 176, gap: 6 }, pressed && { opacity: 0.85 }]}
             >
               <View style={[styles.thumb, { backgroundColor: show.color }]}>
@@ -171,12 +167,7 @@ function FriendsWatching({ shows }: { shows: Show[] }) {
               key={f.id}
               accessibilityRole="button"
               accessibilityLabel={`${f.handle} is ${f.watching.watchingNow ? 'watching' : 'on'} ${show.title}, episode ${f.watching.episode}. Watch with them.`}
-              onPress={() =>
-                router.push({
-                  pathname: '/watch/[showId]/[episode]',
-                  params: { showId: show.id, episode: String(f.watching.episode) },
-                })
-              }
+              onPress={() => playEpisode(show.id, f.watching.episode)}
               style={({ pressed }) => [
                 styles.friendRow,
                 i > 0 && styles.rule,

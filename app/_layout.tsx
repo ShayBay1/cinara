@@ -89,6 +89,10 @@ export default function RootLayout() {
             name="welcome"
             options={{ presentation: 'fullScreenModal', animation: 'fade' }}
           />
+          <Stack.Screen
+            name="resume/[showId]/[episode]"
+            options={{ presentation: 'transparentModal', animation: 'fade' }}
+          />
         </Stack>
       </QueryClientProvider>
       {introDone ? null : <LaunchIntro onReady={onIntroReady} onDone={onIntroDone} />}

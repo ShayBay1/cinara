@@ -14,6 +14,7 @@ import { useNow } from '@/hooks/useNow';
 import { useReminder } from '@/hooks/useReminder';
 import { countdownParts, dropNight, premiereFor, premiereStage } from '@/lib/premieres';
 import { dayLabel, DROP_SIZE, SLOT_LABEL } from '@/lib/schedule';
+import { playEpisode, resumeEpisode, resumePoint, startOver } from '@/lib/play';
 import { useAppStore } from '@/store/useAppStore';
 import { colors, fonts, radius, tintFor } from '@/theme/tokens';
 
@@ -38,11 +39,8 @@ export default function ShowScreen() {
   return <ShowPage show={show.data} />;
 }
 
-const watch = (show: Show, n: number) =>
-  router.push({
-    pathname: '/watch/[showId]/[episode]',
-    params: { showId: show.id, episode: String(n) },
-  });
+/** Episodes on the strip: asks Resume or Start over if you're partway through that one. */
+const watch = (show: Show, n: number) => playEpisode(show.id, n);
 const openLive = (show: Show) =>
   router.push({ pathname: '/live/[showId]', params: { showId: show.id } });
 
@@ -60,6 +58,9 @@ function ShowPage({ show }: { show: Show }) {
   const resumeFrac = progress?.durationSec
     ? Math.min(1, progress.positionSec / progress.durationSec)
     : 0;
+  // Partway through: show Resume plus a Start over button.
+  const canStartOver =
+    resumeEp !== null && progress !== undefined && resumePoint(show.id, resumeEp) !== null;
   const drops = Math.ceil(show.episodeCount / DROP_SIZE);
   const done = show.latestEpisode >= show.episodeCount;
   const special = show.episodeCount === 1;
@@ -106,7 +107,7 @@ function ShowPage({ show }: { show: Show }) {
         <View style={{ flexDirection: 'row', gap: 10, marginTop: 8 }}>
           <Pressable
             accessibilityRole="button"
-            onPress={() => watch(show, resumeEp ?? 1)}
+            onPress={() => resumeEpisode(show.id, resumeEp ?? 1)}
             style={({ pressed }) => [styles.primary, pressed && { opacity: 0.88 }]}
           >
             <Icon name="play" size={18} color={colors.ink} filled />
@@ -137,6 +138,23 @@ function ShowPage({ show }: { show: Show }) {
             <Icon name={inList ? 'check' : 'plus'} color={inList ? colors.gold : colors.text} />
           </Pressable>
         </View>
+        {canStartOver ? (
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={
+              special
+                ? 'Start over from the beginning'
+                : `Start Episode ${resumeEp} over from the beginning`
+            }
+            onPress={() => startOver(show.id, resumeEp!)}
+            style={({ pressed }) => [styles.startOver, pressed && { opacity: 0.8 }]}
+          >
+            <Icon name="replay" size={16} color={colors.text} />
+            <T style={{ fontFamily: fonts.bodyHeavy, fontSize: 14, color: colors.text }}>
+              {special ? 'Start over' : `Start Episode ${resumeEp} over`}
+            </T>
+          </Pressable>
+        ) : null}
 
         {show.synopsis ? <T style={styles.synopsis}>{show.synopsis}</T> : null}
 
@@ -452,6 +470,17 @@ function NextDrop({
 }
 
 const styles = StyleSheet.create({
+  startOver: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    height: 46,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.surface,
+  },
   center: {
     flex: 1,
     backgroundColor: colors.ink,

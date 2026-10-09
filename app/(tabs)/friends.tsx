@@ -1,5 +1,4 @@
 import * as Clipboard from 'expo-clipboard';
-import { router } from 'expo-router';
 import { useState } from 'react';
 import { Alert, Platform, Share, StyleSheet, TextInput, View } from 'react-native';
 
@@ -15,6 +14,7 @@ import {
   useShows,
 } from '@/hooks/queries';
 import { WEB_URL } from '@/lib/billing';
+import { playEpisode } from '@/lib/play';
 import { useAppStore } from '@/store/useAppStore';
 import { colors, fonts, radius } from '@/theme/tokens';
 
@@ -184,15 +184,7 @@ export default function FriendsScreen() {
                     kind="outline"
                     label={live ? 'Join in' : 'Watch with them'}
                     accessibilityHint={`Opens ${showTitle(f.watching.showId)}, episode ${f.watching.episode}`}
-                    onPress={() =>
-                      router.push({
-                        pathname: '/watch/[showId]/[episode]',
-                        params: {
-                          showId: f.watching!.showId,
-                          episode: String(f.watching!.episode),
-                        },
-                      })
-                    }
+                    onPress={() => playEpisode(f.watching!.showId, f.watching!.episode)}
                   />
                 ) : null}
               </View>
