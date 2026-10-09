@@ -8,7 +8,7 @@ import type { Show } from '@/data';
 import { coverSource } from '@/data/covers';
 import { useReminder } from '@/hooks/useReminder';
 import { useLaunchFrame } from '@/lib/launchFrame';
-import { LIVE_WINDOW_MS, type Premiere } from '@/lib/premieres';
+import { LIVE_WINDOW_MS, premiereFor, type Premiere } from '@/lib/premieres';
 import { capitalize, dayLabel } from '@/lib/schedule';
 import { fonts, home } from '@/theme/tokens';
 
@@ -34,7 +34,9 @@ export function HomeTop({
   now: Date;
 }) {
   const { u, x, y } = useLaunchFrame();
-  const show = premiere?.show ?? featured;
+  // The featured title (The Making of Zipline) owns the card the launch film lands on; otherwise tonight's premiere.
+  const show = featured ?? premiere?.show;
+  const cardPremiere = featured ? premiereFor(featured, now) : premiere;
 
   return (
     <View>
@@ -92,7 +94,7 @@ export function HomeTop({
       </View>
 
       {show ? (
-        <PremiereCard show={show} premiere={premiere} now={now} />
+        <PremiereCard show={show} premiere={cardPremiere} now={now} />
       ) : (
         <View style={{ height: u(300) }} />
       )}
