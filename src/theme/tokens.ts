@@ -26,6 +26,20 @@ export const fonts = {
   body: 'Manrope_500Medium',
   bodyBold: 'Manrope_700Bold',
   bodyHeavy: 'Manrope_800ExtraBold',
+  /** Engraved capitals (Cinzel Bold) used on Home's premiere card and section labels. */
+  engraved: 'Cinzel_700Bold',
+} as const;
+
+/** Home's warm darkroom palette (matches the last frame of the launch animation). */
+export const home = {
+  bg: '#15100B',
+  field: '#1E1710',
+  fieldLine: '#3A2E20',
+  fieldIcon: '#A8977A',
+  placeholder: '#8C8172',
+  gold: '#FFB800',
+  goldLight: '#FFD25A',
+  parchment: '#F3EAD8',
 } as const;
 
 export const space = { xs: 4, sm: 8, md: 12, lg: 16, xl: 24, xxl: 32 } as const;

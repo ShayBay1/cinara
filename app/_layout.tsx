@@ -1,5 +1,9 @@
 import { Anton_400Regular } from '@expo-google-fonts/anton';
-import { InstrumentSerif_400Regular, InstrumentSerif_400Regular_Italic } from '@expo-google-fonts/instrument-serif';
+import { Cinzel_700Bold } from '@expo-google-fonts/cinzel';
+import {
+  InstrumentSerif_400Regular,
+  InstrumentSerif_400Regular_Italic,
+} from '@expo-google-fonts/instrument-serif';
 import {
   Manrope_500Medium,
   Manrope_700Bold,
@@ -11,8 +15,10 @@ import * as Notifications from 'expo-notifications';
 import { router, Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
-import { useEffect, useState } from 'react';
-import { Platform } from 'react-native';
+import { useCallback, useEffect, useState } from 'react';
+import { Platform, View } from 'react-native';
+
+import { LaunchIntro } from '@/components/launch/LaunchIntro';
 
 import { lockUpright } from '@/lib/orientationLock';
 import { colors } from '@/theme/tokens';
@@ -28,6 +34,7 @@ export default function RootLayout() {
   );
   const [fontsLoaded, fontError] = useFonts({
     Anton_400Regular,
+    Cinzel_700Bold,
     InstrumentSerif_400Regular,
     InstrumentSerif_400Regular_Italic,
     Manrope_500Medium,
@@ -35,33 +42,48 @@ export default function RootLayout() {
     Manrope_800ExtraBold,
   });
 
+  // The launch animation plays once per cold start; the native splash stays up until its first frame is ready.
+  const [introReady, setIntroReady] = useState(false);
+  const [introDone, setIntroDone] = useState(false);
+  const onIntroReady = useCallback(() => setIntroReady(true), []);
+  const onIntroDone = useCallback(() => setIntroDone(true), []);
+
   useEffect(() => {
-    if (fontsLoaded || fontError) void SplashScreen.hideAsync();
-  }, [fontsLoaded, fontError]);
+    if ((fontsLoaded || fontError) && (introReady || introDone)) void SplashScreen.hideAsync();
+  }, [fontsLoaded, fontError, introReady, introDone]);
 
   useNotificationDeepLinks();
 
   if (!fontsLoaded && !fontError) return null;
 
   return (
-    <QueryClientProvider client={queryClient}>
-      <StatusBar style="light" />
-      <Stack
-        screenOptions={{
-          headerShown: false,
-          contentStyle: { backgroundColor: colors.ink },
-          animation: 'fade',
-        }}
-      >
-        <Stack.Screen name="(tabs)" />
-        <Stack.Screen name="show/[showId]" options={{ animation: 'slide_from_right' }} />
-        <Stack.Screen name="watch/[showId]/[episode]" options={{ presentation: 'fullScreenModal', animation: 'slide_from_bottom' }} />
-        <Stack.Screen name="live/[showId]" options={{ presentation: 'fullScreenModal', animation: 'slide_from_bottom' }} />
-        <Stack.Screen name="comments/[showId]/[episode]" options={{ presentation: 'modal' }} />
-        <Stack.Screen name="join" options={{ presentation: 'modal' }} />
-        <Stack.Screen name="sign-in" options={{ presentation: 'modal' }} />
-      </Stack>
-    </QueryClientProvider>
+    <View style={{ flex: 1, backgroundColor: '#000' }}>
+      <QueryClientProvider client={queryClient}>
+        <StatusBar style="light" />
+        <Stack
+          screenOptions={{
+            headerShown: false,
+            contentStyle: { backgroundColor: colors.ink },
+            animation: 'fade',
+          }}
+        >
+          <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="show/[showId]" options={{ animation: 'slide_from_right' }} />
+          <Stack.Screen
+            name="watch/[showId]/[episode]"
+            options={{ presentation: 'fullScreenModal', animation: 'slide_from_bottom' }}
+          />
+          <Stack.Screen
+            name="live/[showId]"
+            options={{ presentation: 'fullScreenModal', animation: 'slide_from_bottom' }}
+          />
+          <Stack.Screen name="comments/[showId]/[episode]" options={{ presentation: 'modal' }} />
+          <Stack.Screen name="join" options={{ presentation: 'modal' }} />
+          <Stack.Screen name="sign-in" options={{ presentation: 'modal' }} />
+        </Stack>
+      </QueryClientProvider>
+      {introDone ? null : <LaunchIntro onReady={onIntroReady} onDone={onIntroDone} />}
+    </View>
   );
 }
 

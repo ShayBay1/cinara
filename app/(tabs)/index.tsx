@@ -1,224 +1,64 @@
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Icon } from '@/components/Icon';
-import { Screen } from '@/components/Screen';
+import { HomeTop } from '@/components/launch/HomeTop';
 import { ErrorState, T } from '@/components/ui';
 import type { Show } from '@/data';
+import { coverSource } from '@/data/covers';
 import { useComingSoon, useShows } from '@/hooks/queries';
 import { useNow } from '@/hooks/useNow';
-import { useReminder } from '@/hooks/useReminder';
-import { countdownParts, dropNights, LIVE_WINDOW_MS, soonestPremiere, type Premiere } from '@/lib/premieres';
-import { dayLabel, dropOf, SLOT_LABEL } from '@/lib/schedule';
+import { soonestPremiere } from '@/lib/premieres';
+import { dropOf } from '@/lib/schedule';
 import { useAppStore } from '@/store/useAppStore';
-import { colors, fonts, radius } from '@/theme/tokens';
-import { coverSource } from '@/data/covers';
+import { colors, fonts, home, radius } from '@/theme/tokens';
 
-const openShow = (show: Show) => router.push({ pathname: '/show/[showId]', params: { showId: show.id } });
-
-/** Home: tonight's premiere up top, then where you left off, every show, and what's coming. */
+/**
+ * Home. The top (logo, search, tonight's premiere card, Now streaming) is laid out to match the
+ * last frame of the launch animation, which dissolves straight into it. Below: where you left
+ * off and what's coming.
+ */
 export default function HomeScreen() {
   const shows = useShows();
   const coming = useComingSoon();
   const now = useNow(1000);
+  const insets = useSafeAreaInsets();
   const list = shows.data ?? [];
   const premiere = soonestPremiere(list, now);
   const featured = list.find((s) => s.featured);
 
   return (
-    <Screen
-      title={
-        <View>
-          <T style={{ fontFamily: fonts.display, fontSize: 28, lineHeight: 36, letterSpacing: 0.5 }}>
-            snippets<T style={{ fontFamily: fonts.display, fontSize: 28, color: colors.accent }}>.</T>
-          </T>
-          <T variant="serifItalic" style={{ color: colors.muted, fontSize: 15 }}>Made by the people on screen.</T>
-        </View>
+    <ScrollView
+      style={{ flex: 1, backgroundColor: home.bg }}
+      contentContainerStyle={{ paddingBottom: insets.bottom + 120 }}
+      contentInsetAdjustmentBehavior="never"
+      refreshControl={
+        <RefreshControl
+          tintColor={home.gold}
+          refreshing={shows.isRefetching}
+          onRefresh={() => void shows.refetch()}
+        />
       }
-      refreshing={shows.isRefetching}
-      onRefresh={() => void shows.refetch()}
     >
-      {shows.isError ? <ErrorState message="We couldn’t load the shows. Check your connection." onRetry={() => void shows.refetch()} /> : null}
-
-      {featured ? (
-        <>
-          <FeaturedHero show={featured} />
-          {premiere ? <PremiereStrip premiere={premiere} now={now} /> : null}
-        </>
-      ) : premiere ? (
-        <Hero premiere={premiere} now={now} />
-      ) : null}
-
-      <ContinueWatching shows={list} />
-
-      {list.length ? (
-        <View style={styles.section}>
-          <T style={styles.h2}>Now streaming</T>
-          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={{ marginHorizontal: -16 }} contentContainerStyle={{ paddingHorizontal: 16, gap: 10 }}>
-            {list.map((show) => (
-              <Pressable key={show.id} accessibilityRole="button" accessibilityLabel={show.title} onPress={() => openShow(show)} style={({ pressed }) => [{ width: 150, gap: 8 }, pressed && { opacity: 0.85 }]}>
-                <View style={[styles.poster, { backgroundColor: show.color }]}>
-                  {coverSource(show) ? <Image source={coverSource(show)!} style={StyleSheet.absoluteFill} contentFit="cover" transition={200} /> : null}
-                  {coverSource(show) ? <View style={styles.posterShade} /> : null}
-                  <T style={[styles.posterLetter, coverSource(show) ? { opacity: 0 } : null]}>{show.title.replace(/^The /, '').charAt(0)}</T>
-                  <T style={styles.posterTitle} numberOfLines={3}>{show.title}</T>
-                </View>
-                <T style={styles.meta}>{show.latestEpisode >= show.episodeCount ? (show.episodeCount === 1 ? 'Special · out now' : `All ${show.episodeCount} episodes out`) : `New episodes ${dropNights(show)}`}</T>
-              </Pressable>
-            ))}
-          </ScrollView>
-        </View>
-      ) : null}
-
-      {coming.data ? <ComingSoonRow title={coming.data.title ?? 'Next on Snippets'} arrives={coming.data.arrives} /> : null}
-    </Screen>
-  );
-}
-
-/** Tonight's premiere: key art, countdown, Remind me / Catch up. Turns into Watch live when it starts. */
-function Hero({ premiere, now }: { premiere: Premiere; now: Date }) {
-  const { show, drop, at } = premiere;
-  const reminder = useReminder(show);
-  const left = at.getTime() - now.getTime();
-  const live = left <= 0 && left > -LIVE_WINDOW_MS;
-  const word = dayLabel(at, now);
-  const c = countdownParts(left);
-  const eyebrow = live ? 'LIVE NOW' : word === 'tonight' ? `PREMIERES TONIGHT · ${SLOT_LABEL}` : `PREMIERES ${word.toUpperCase()} · ${SLOT_LABEL}`;
-
-  return (
-    <Pressable accessibilityRole="button" accessibilityLabel={`${show.title}. ${eyebrow}`} onPress={() => openShow(show)} style={[styles.hero, { backgroundColor: show.color }]}>
-      {coverSource(show) ? <Image source={coverSource(show)!} style={StyleSheet.absoluteFill} contentFit="cover" transition={250} /> : <View style={styles.heroArt} />}
-      <View style={styles.stamp} accessibilityLabel="Real actors, no AI">
-        <T style={styles.stampSmall}>REAL</T>
-        <T style={styles.stampSerif}>actors</T>
-        <T style={styles.stampSmall}>NO AI</T>
+      <HomeTop shows={list} premiere={premiere} featured={featured} now={now} />
+      <View style={{ paddingHorizontal: 16 }}>
+        {shows.isError ? (
+          <ErrorState
+            message="We couldn’t load the shows. Check your connection."
+            onRetry={() => void shows.refetch()}
+          />
+        ) : null}
+        <ContinueWatching shows={list} />
+        {coming.data ? (
+          <ComingSoonRow
+            title={coming.data.title ?? 'Next on Snippets'}
+            arrives={coming.data.arrives}
+          />
+        ) : null}
       </View>
-      <View style={styles.heroText}>
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          <View style={[styles.dot, live && { backgroundColor: colors.live }]} />
-          <T style={[styles.eyebrow, live && { color: '#FF8A8E' }]}>{eyebrow}</T>
-        </View>
-        <T style={styles.heroTitle}>{show.title}</T>
-        <T style={styles.heroLine}>{`Episodes ${drop.from}–${drop.to} · Live, with the cast in the chat`}</T>
-        {live ? null : (
-          <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }} accessibilityLabel={`Starts in ${c.days ? `${c.days} days ` : ''}${c.h} hours ${c.m} minutes`}>
-            {c.days ? (
-              <>
-                <T style={styles.box}>{`${c.days}d`}</T>
-                <T style={styles.colon}> </T>
-              </>
-            ) : null}
-            <T style={styles.box}>{c.h}</T>
-            <T style={styles.colon}>:</T>
-            <T style={styles.box}>{c.m}</T>
-            <T style={styles.colon}>:</T>
-            <T style={styles.box}>{c.s}</T>
-          </View>
-        )}
-        <View style={{ flexDirection: 'row', gap: 8, marginTop: 4 }}>
-          {live ? (
-            <Pressable accessibilityRole="button" onPress={() => router.push({ pathname: '/live/[showId]', params: { showId: show.id } })} style={[styles.cta, { backgroundColor: colors.live }]}>
-              <Icon name="live" size={18} color="#fff" />
-              <T style={[styles.ctaText, { color: '#fff' }]}>Watch live</T>
-            </Pressable>
-          ) : (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityState={{ selected: reminder.isOn }}
-              onPress={reminder.toggle}
-              disabled={reminder.busy}
-              style={[styles.cta, reminder.isOn ? styles.ctaOn : { backgroundColor: colors.gold }]}
-            >
-              <Icon name={reminder.isOn ? 'check' : 'bell'} size={17} color={reminder.isOn ? colors.gold : colors.ink} />
-              <T style={[styles.ctaText, reminder.isOn && { color: colors.gold }]}>{reminder.isOn ? 'Reminder on' : 'Remind me'}</T>
-            </Pressable>
-          )}
-          <Pressable accessibilityRole="button" onPress={() => openShow(show)} style={[styles.cta, styles.ctaGhost]}>
-            <T style={[styles.ctaText, { color: colors.text }]}>Catch up</T>
-          </Pressable>
-        </View>
-      </View>
-    </Pressable>
-  );
-}
-
-/**
- * A title pinned to the top of Home. The words sit up top over a light shade so the bottom of the
- * key art (where the people usually are) stays clear; the buttons sit at the very bottom on their own.
- * "The Making of X" titles get a two-part treatment: a small serif line, then X large in amber.
- */
-function FeaturedHero({ show }: { show: Show }) {
-  const progress = useAppStore((s) => s.progress[show.id]);
-  const resumeEp = progress && progress.episode <= show.latestEpisode ? progress.episode : 1;
-  const resuming = !!progress && progress.positionSec > 5;
-  const special = show.episodeCount === 1;
-  const split = show.title.match(/^(the making of)\s+(.+)$/i);
-  return (
-    <Pressable accessibilityRole="button" accessibilityLabel={`${show.title}. ${show.tagline}`} onPress={() => openShow(show)} style={[styles.hero, { backgroundColor: show.color }]}>
-      {coverSource(show) ? <Image source={coverSource(show)!} style={StyleSheet.absoluteFill} contentFit="cover" transition={250} /> : <View style={styles.heroArt} />}
-      <View style={styles.featureShade} pointerEvents="none" />
-      <View style={styles.stamp} accessibilityLabel="Real actors, no AI">
-        <T style={styles.stampSmall}>REAL</T>
-        <T style={styles.stampSerif}>actors</T>
-        <T style={styles.stampSmall}>NO AI</T>
-      </View>
-
-      <View style={styles.featureTop} pointerEvents="none">
-        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
-          <View style={styles.dot} />
-          <T style={[styles.eyebrow, styles.lift]}>{special ? `NOW STREAMING · ${show.genre.toUpperCase()}` : 'NOW STREAMING'}</T>
-        </View>
-        {split ? (
-          <View>
-            <T style={styles.featurePre}>{split[1]!.toLowerCase()}</T>
-            <T style={styles.featureName} numberOfLines={1} adjustsFontSizeToFit minimumFontScale={0.6}>{split[2]}</T>
-          </View>
-        ) : (
-          <T style={[styles.heroTitle, styles.lift]}>{show.title}</T>
-        )}
-        <T style={styles.featureLine} numberOfLines={2}>{show.tagline}</T>
-      </View>
-
-      <View style={styles.featureButtons}>
-        <Pressable
-          accessibilityRole="button"
-          onPress={() => router.push({ pathname: '/watch/[showId]/[episode]', params: { showId: show.id, episode: String(resumeEp) } })}
-          style={[styles.cta, { backgroundColor: colors.gold, paddingHorizontal: 22 }]}
-        >
-          <Icon name="play" size={17} color={colors.ink} />
-          <T style={styles.ctaText}>{resuming ? 'Resume' : special ? 'Watch now' : `Watch Episode ${resumeEp}`}</T>
-        </Pressable>
-        <Pressable accessibilityRole="button" onPress={() => openShow(show)} style={[styles.cta, styles.ctaGlass]}>
-          <T style={[styles.ctaText, { color: colors.text }]}>Details</T>
-        </Pressable>
-      </View>
-    </Pressable>
-  );
-}
-
-/** When a title is featured, the next premiere still gets a slim line under it. */
-function PremiereStrip({ premiere, now }: { premiere: Premiere; now: Date }) {
-  const { show, drop, at } = premiere;
-  const left = at.getTime() - now.getTime();
-  const live = left <= 0 && left > -LIVE_WINDOW_MS;
-  const c = countdownParts(left);
-  const word = dayLabel(at, now);
-  return (
-    <Pressable
-      accessibilityRole="button"
-      onPress={() => (live ? router.push({ pathname: '/live/[showId]', params: { showId: show.id } }) : openShow(show))}
-      style={({ pressed }) => [styles.strip, pressed && { opacity: 0.88 }]}
-    >
-      <View style={[styles.dot, live && { backgroundColor: colors.live }]} />
-      <View style={{ flex: 1 }}>
-        <T style={[styles.eyebrow, { fontSize: 10 }, live && { color: '#FF8A8E' }]}>{live ? 'LIVE NOW' : `PREMIERES ${word.toUpperCase()} · ${SLOT_LABEL}`}</T>
-        <T style={{ fontFamily: fonts.bodyHeavy, fontSize: 15, color: colors.text }} numberOfLines={1}>{`${show.title} · Eps ${drop.from}–${drop.to}`}</T>
-      </View>
-      <T style={{ fontFamily: fonts.bodyHeavy, fontSize: 15, color: colors.text, fontVariant: ['tabular-nums'] }}>
-        {live ? 'Watch' : c.days ? `${c.days}d ${c.h}h` : `${c.h}:${c.m}:${c.s}`}
-      </T>
-    </Pressable>
+    </ScrollView>
   );
 }
 
@@ -244,12 +84,23 @@ function ContinueWatching({ shows }: { shows: Show[] }) {
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={`Continue ${show.title}, episode ${p.episode}`}
-        onPress={() => router.push({ pathname: '/watch/[showId]/[episode]', params: { showId: show.id, episode: String(p.episode) } })}
+        onPress={() =>
+          router.push({
+            pathname: '/watch/[showId]/[episode]',
+            params: { showId: show.id, episode: String(p.episode) },
+          })
+        }
         style={({ pressed }) => [styles.card, pressed && { opacity: 0.88 }]}
       >
         <View style={{ flexDirection: 'row', gap: 12, alignItems: 'center' }}>
           <View style={[styles.thumb, { backgroundColor: show.color }]}>
-            {coverSource(show) ? <Image source={coverSource(show)!} style={StyleSheet.absoluteFill} contentFit="cover" /> : null}
+            {coverSource(show) ? (
+              <Image
+                source={coverSource(show)!}
+                style={StyleSheet.absoluteFill}
+                contentFit="cover"
+              />
+            ) : null}
             <View style={styles.thumbPlay}>
               <Icon name="play" size={14} color={colors.ink} />
             </View>
@@ -259,7 +110,10 @@ function ContinueWatching({ shows }: { shows: Show[] }) {
           </View>
           <View style={{ gap: 4, flexShrink: 1 }}>
             <T style={styles.kicker}>{show.title.toUpperCase()}</T>
-            <T style={{ fontFamily: fonts.bodyHeavy, fontSize: 16, color: colors.text }} numberOfLines={1}>{`Ep ${p.episode}${title ? ` · ${title}` : ''}`}</T>
+            <T
+              style={{ fontFamily: fonts.bodyHeavy, fontSize: 16, color: colors.text }}
+              numberOfLines={1}
+            >{`Ep ${p.episode}${title ? ` · ${title}` : ''}`}</T>
             {left > 0 ? <T style={styles.meta}>{`${fmt(left)} left`}</T> : null}
           </View>
         </View>
@@ -267,7 +121,16 @@ function ContinueWatching({ shows }: { shows: Show[] }) {
           <View style={{ flexDirection: 'row', gap: 4 }}>
             {Array.from({ length: size }, (_, i) => {
               const n = drop.from + i;
-              return <View key={n} style={[styles.seg, n < p.episode && { backgroundColor: colors.text }, n === p.episode && { backgroundColor: 'rgba(244,241,234,0.55)' }]} />;
+              return (
+                <View
+                  key={n}
+                  style={[
+                    styles.seg,
+                    n < p.episode && { backgroundColor: colors.text },
+                    n === p.episode && { backgroundColor: 'rgba(244,241,234,0.55)' },
+                  ]}
+                />
+              );
             })}
           </View>
           <T style={styles.meta}>{`Episode ${p.episode} of ${drop.to}`}</T>
@@ -285,14 +148,23 @@ function ComingSoonRow({ title, arrives }: { title: string; arrives: string }) {
       <T style={styles.h2}>Coming soon</T>
       <View style={[styles.card, { flexDirection: 'row', alignItems: 'center' }]}>
         <View style={styles.soonArt}>
-          <T style={{ fontFamily: fonts.display, fontSize: 22, color: colors.text }}>s<T style={{ fontFamily: fonts.display, fontSize: 22, color: colors.accent }}>.</T></T>
+          <T style={{ fontFamily: fonts.display, fontSize: 22, color: colors.text }}>
+            s<T style={{ fontFamily: fonts.display, fontSize: 22, color: colors.accent }}>.</T>
+          </T>
         </View>
         <View style={{ flex: 1, gap: 2 }}>
           <T style={{ fontFamily: fonts.bodyHeavy, fontSize: 15, color: colors.text }}>{title}</T>
           <T style={styles.meta}>{arrives}</T>
         </View>
-        <Pressable accessibilityRole="button" accessibilityState={{ selected: notify }} onPress={() => setNotify(!notify)} style={[styles.notify, notify && { borderColor: colors.text }]}>
-          <T style={{ fontFamily: fonts.bodyHeavy, fontSize: 13, color: colors.text }}>{notify ? 'On' : 'Notify me'}</T>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityState={{ selected: notify }}
+          onPress={() => setNotify(!notify)}
+          style={[styles.notify, notify && { borderColor: colors.text }]}
+        >
+          <T style={{ fontFamily: fonts.bodyHeavy, fontSize: 13, color: colors.text }}>
+            {notify ? 'On' : 'Notify me'}
+          </T>
         </Pressable>
       </View>
     </View>
@@ -304,44 +176,54 @@ const styles = StyleSheet.create({
   h2: { fontFamily: fonts.bodyHeavy, fontSize: 18, color: colors.text, marginBottom: 10 },
   meta: { fontFamily: fonts.bodyBold, fontSize: 12, color: colors.textSoft },
   kicker: { fontFamily: fonts.bodyHeavy, fontSize: 11, letterSpacing: 1.4, color: '#A7A3B3' },
-  hero: { marginTop: 10, height: 470, borderRadius: 22, overflow: 'hidden' },
-  heroArt: {
-    ...StyleSheet.absoluteFill,
-    experimental_backgroundImage:
-      'radial-gradient(circle at 35% 22%, rgba(196,106,58,0.45) 0%, rgba(196,106,58,0) 45%), radial-gradient(circle at 98% 50%, rgba(46,125,166,0.38) 0%, rgba(46,125,166,0) 40%)',
+  card: {
+    gap: 12,
+    padding: 12,
+    borderRadius: 18,
+    backgroundColor: colors.surface,
+    borderWidth: 1,
+    borderColor: '#24242C',
   },
-  stamp: { position: 'absolute', right: 16, top: 16, width: 66, height: 66, borderRadius: 33, borderWidth: 1.5, borderColor: 'rgba(244,241,234,0.75)', alignItems: 'center', justifyContent: 'center', transform: [{ rotate: '10deg' }] },
-  stampSmall: { fontFamily: fonts.bodyHeavy, fontSize: 8, letterSpacing: 1.2, color: colors.text },
-  stampSerif: { fontFamily: fonts.serifItalic, fontSize: 15, lineHeight: 16, color: colors.text },
-  heroText: { position: 'absolute', left: 0, right: 0, bottom: 0, paddingTop: 120, paddingHorizontal: 18, paddingBottom: 18, gap: 10, experimental_backgroundImage: 'linear-gradient(180deg, rgba(26,9,15,0) 0%, rgba(14,8,10,0.92) 45%)' },
-  dot: { width: 8, height: 8, borderRadius: 4, backgroundColor: colors.gold },
-  eyebrow: { fontFamily: fonts.bodyHeavy, fontSize: 11, letterSpacing: 1.8, color: colors.gold },
-  heroTitle: { fontFamily: fonts.display, fontSize: 44, lineHeight: 52, textTransform: 'uppercase', color: colors.text },
-  heroLine: { fontFamily: fonts.serifItalic, fontSize: 19, lineHeight: 24, color: '#F1E6E2' },
-  box: { paddingHorizontal: 10, paddingVertical: 6, borderRadius: 8, overflow: 'hidden', backgroundColor: 'rgba(8,8,10,0.55)', fontFamily: fonts.bodyHeavy, fontSize: 22, color: colors.text, fontVariant: ['tabular-nums'] },
-  colon: { fontFamily: fonts.bodyHeavy, fontSize: 22, color: '#A7A3B3' },
-  cta: { height: 50, paddingHorizontal: 18, borderRadius: 14, flexDirection: 'row', alignItems: 'center', justifyContent: 'center', gap: 8 },
-  ctaOn: { backgroundColor: 'rgba(232,194,122,0.16)', borderWidth: 1, borderColor: colors.gold },
-  ctaGhost: { borderWidth: 1, borderColor: 'rgba(244,241,234,0.4)' },
-  ctaText: { fontFamily: fonts.bodyHeavy, fontSize: 14, color: colors.ink },
-  featureShade: { ...StyleSheet.absoluteFill, experimental_backgroundImage: 'linear-gradient(180deg, rgba(6,6,10,0.62) 0%, rgba(6,6,10,0.25) 30%, rgba(6,6,10,0) 48%)' },
-  featureTop: { position: 'absolute', left: 18, right: 92, top: 18, gap: 6 },
-  lift: { textShadowColor: 'rgba(0,0,0,0.5)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 8 },
-  featurePre: { fontFamily: fonts.serifItalic, fontSize: 24, lineHeight: 28, color: colors.text, textShadowColor: 'rgba(0,0,0,0.45)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 8 },
-  featureName: { fontFamily: fonts.display, fontSize: 66, lineHeight: 80, letterSpacing: 1.5, textTransform: 'uppercase', color: '#F4A54A', textShadowColor: 'rgba(0,0,0,0.4)', textShadowOffset: { width: 0, height: 2 }, textShadowRadius: 14 },
-  featureLine: { fontFamily: fonts.serifItalic, fontSize: 16, lineHeight: 21, color: '#F1E6E2', textShadowColor: 'rgba(0,0,0,0.6)', textShadowOffset: { width: 0, height: 1 }, textShadowRadius: 8 },
-  featureButtons: { position: 'absolute', left: 16, bottom: 16, flexDirection: 'row', gap: 8 },
-  ctaGlass: { backgroundColor: 'rgba(8,8,10,0.45)', borderWidth: StyleSheet.hairlineWidth, borderColor: 'rgba(244,241,234,0.55)' },
-  strip: { marginTop: 10, flexDirection: 'row', alignItems: 'center', gap: 12, paddingVertical: 12, paddingHorizontal: 14, borderRadius: 16, backgroundColor: colors.surface, borderWidth: 1, borderColor: '#24242C' },
-  card: { gap: 12, padding: 12, borderRadius: 18, backgroundColor: colors.surface, borderWidth: 1, borderColor: '#24242C' },
-  thumb: { width: 132, height: 74, borderRadius: 10, overflow: 'hidden', alignItems: 'center', justifyContent: 'center' },
-  thumbPlay: { width: 30, height: 30, borderRadius: 15, backgroundColor: 'rgba(244,241,234,0.9)', alignItems: 'center', justifyContent: 'center' },
-  thumbTrack: { position: 'absolute', left: 0, right: 0, bottom: 0, height: 4, backgroundColor: 'rgba(244,241,234,0.25)' },
+  thumb: {
+    width: 132,
+    height: 74,
+    borderRadius: 10,
+    overflow: 'hidden',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  thumbPlay: {
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: 'rgba(244,241,234,0.9)',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  thumbTrack: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: 4,
+    backgroundColor: 'rgba(244,241,234,0.25)',
+  },
   seg: { flex: 1, height: 5, borderRadius: 3, backgroundColor: '#2E2E38' },
-  poster: { height: 220, borderRadius: 14, overflow: 'hidden', justifyContent: 'flex-end', padding: 10 },
-  posterLetter: { position: 'absolute', right: -14, top: -20, fontFamily: fonts.display, fontSize: 200, lineHeight: 230, color: 'rgba(244,241,234,0.07)' },
-  posterShade: { ...StyleSheet.absoluteFill, experimental_backgroundImage: 'linear-gradient(180deg, rgba(0,0,0,0) 50%, rgba(0,0,0,0.75) 100%)' },
-  posterTitle: { fontFamily: fonts.display, fontSize: 22, lineHeight: 26, textTransform: 'uppercase', color: colors.text },
-  soonArt: { width: 56, height: 72, borderRadius: 10, backgroundColor: colors.wine, alignItems: 'center', justifyContent: 'center' },
-  notify: { height: 40, paddingHorizontal: 14, borderRadius: radius.pill, borderWidth: 1, borderColor: '#4A4A55', alignItems: 'center', justifyContent: 'center' },
+  soonArt: {
+    width: 56,
+    height: 72,
+    borderRadius: 10,
+    backgroundColor: colors.wine,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  notify: {
+    height: 40,
+    paddingHorizontal: 14,
+    borderRadius: radius.pill,
+    borderWidth: 1,
+    borderColor: '#4A4A55',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
 });

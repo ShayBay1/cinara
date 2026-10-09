@@ -1,0 +1,29 @@
+import { useWindowDimensions } from 'react-native';
+
+/**
+ * The launch animation is a pre-rendered video of a 288 x 608 "mock" screen, played full screen
+ * with contentFit="cover". Home's top section is laid out in the same mock units, mapped through
+ * the same cover scaling, so the film's middle frame lands exactly on Home's premiere card on any
+ * phone size.
+ */
+export const MOCK_W = 288;
+export const MOCK_H = 608;
+
+export function launchFrame(width: number, height: number) {
+  const s = Math.max(width / MOCK_W, height / MOCK_H);
+  const ox = (MOCK_W * s - width) / 2;
+  const oy = (MOCK_H * s - height) / 2;
+  return {
+    /** Mock size -> points. */
+    u: (v: number) => v * s,
+    /** Mock x -> screen x. */
+    x: (v: number) => v * s - ox,
+    /** Mock y -> screen y. */
+    y: (v: number) => v * s - oy,
+  };
+}
+
+export function useLaunchFrame() {
+  const { width, height } = useWindowDimensions();
+  return launchFrame(width, height);
+}
