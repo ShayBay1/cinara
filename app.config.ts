@@ -57,6 +57,13 @@ const config: ExpoConfig = {
       },
     ],
     ['expo-notifications', { color: '#E8C27A' }],
+    [
+      'expo-calendar',
+      {
+        calendarPermission:
+          'Snippets adds premieres you choose to your calendar so you get a reminder before 8/7c.',
+      },
+    ],
   ],
   experiments: {
     typedRoutes: true,
@@ -65,7 +72,10 @@ const config: ExpoConfig = {
   // "sdkVersion" tags updates with the Expo SDK (exposdk:57.0.0), which is what Expo Go can open.
   runtimeVersion: { policy: 'sdkVersion' },
   ...(EAS_PROJECT_ID
-    ? { updates: { url: `https://u.expo.dev/${EAS_PROJECT_ID}` }, extra: { eas: { projectId: EAS_PROJECT_ID } } }
+    ? {
+        updates: { url: `https://u.expo.dev/${EAS_PROJECT_ID}` },
+        extra: { eas: { projectId: EAS_PROJECT_ID } },
+      }
     : {}),
 };
 

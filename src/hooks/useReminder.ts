@@ -2,6 +2,7 @@ import { useCallback, useState } from 'react';
 import { Alert, Platform } from 'react-native';
 
 import type { Show } from '@/data';
+import { addPremiereToCalendar } from '@/lib/calendarCard';
 import { cancelReminder, scheduleNextPremiere } from '@/lib/reminders';
 import { capitalize, dayLabel, SLOT_LABEL } from '@/lib/schedule';
 import { useAppStore } from '@/store/useAppStore';
@@ -24,11 +25,28 @@ export function useReminder(show: Show | undefined) {
       const result = await scheduleNextPremiere(show);
       if (result.ok) {
         setReminder(show.id, result.notificationId);
-        notify('Reminder set', `${show.title}: ${capitalize(dayLabel(result.at, new Date()))} at ${SLOT_LABEL}.`);
+        // The phone's own reminder card: a calendar event they can keep, with alerts before 8/7c.
+        const card = await addPremiereToCalendar(show);
+        if (card === 'unavailable') {
+          notify(
+            'Reminder set',
+            `${show.title}: ${capitalize(dayLabel(result.at, new Date()))} at ${SLOT_LABEL}.`,
+          );
+        }
       } else if (result.reason === 'denied') {
-        notify('Notifications are off', 'Turn on notifications for Snippets in Settings to get premiere reminders.');
+        // No notifications allowed: the calendar card still reminds them.
+        const card = await addPremiereToCalendar(show);
+        if (card !== 'saved') {
+          notify(
+            'Notifications are off',
+            'Turn on notifications for Snippets in Settings, or add the premiere to your calendar.',
+          );
+        }
       } else if (result.reason === 'unsupported') {
-        notify('Reminders live in the app', 'Get the Snippets app to be reminded before each premiere.');
+        notify(
+          'Reminders live in the app',
+          'Get the Snippets app to be reminded before each premiere.',
+        );
       }
     } finally {
       setBusy(false);
