@@ -2,8 +2,11 @@ import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
+import { Glass } from '@/components/Glass';
 import { Icon } from '@/components/Icon';
+import { Pressy } from '@/components/Pressy';
 import { Reel } from '@/components/Reel';
+import { GhostCard } from '@/components/Skeleton';
 import { T } from '@/components/ui';
 import type { Show } from '@/data';
 import { coverSource } from '@/data/covers';
@@ -59,40 +62,45 @@ export function HomeTop({
           contentFit="contain"
           accessibilityLabel="Snippets"
         />
-        <Pressable
+        <Pressy
           accessibilityRole="search"
           accessibilityLabel="Search shows, actors and tropes"
           onPress={() => router.push('/search')}
-          style={({ pressed }) => ({
+          feel="tap"
+          style={{
             position: 'absolute',
             left: x(96),
             width: u(179),
             top: y(60),
             height: Math.max(44, u(40)),
-            flexDirection: 'row',
-            alignItems: 'center',
-            gap: u(8),
-            paddingHorizontal: u(13),
-            backgroundColor: pressed ? colors.surfaceRaised : home.field,
-            borderWidth: 1,
-            borderColor: home.fieldLine,
-            borderRadius: u(8),
-          })}
+          }}
         >
-          <Icon name="search" size={u(16)} color={home.fieldIcon} />
-          <T
-            style={{ fontFamily: fonts.body, fontSize: u(13), color: home.placeholder }}
-            numberOfLines={1}
+          <Glass
+            radius={u(8)}
+            interactive
+            style={{
+              flex: 1,
+              flexDirection: 'row',
+              alignItems: 'center',
+              gap: u(8),
+              paddingHorizontal: u(13),
+            }}
           >
-            Search shows and actors
-          </T>
-        </Pressable>
+            <Icon name="search" size={u(16)} color={home.fieldIcon} />
+            <T
+              style={{ fontFamily: fonts.body, fontSize: u(13), color: home.placeholder }}
+              numberOfLines={1}
+            >
+              Search shows and actors
+            </T>
+          </Glass>
+        </Pressy>
       </View>
 
       {show ? (
         <TonightCard show={show} premiere={cardPremiere} now={now} />
       ) : (
-        <View style={{ height: u(300) }} />
+        <GhostCard style={{ marginLeft: x(13), width: u(262), height: u(300) }} />
       )}
 
       {shows.length ? (
@@ -117,22 +125,19 @@ export function HomeTop({
             contentContainerStyle={{ paddingHorizontal: x(16), gap: u(8) }}
           >
             {shows.map((s) => (
-              <Pressable
+              <Pressy
                 key={s.id}
                 accessibilityRole="button"
                 accessibilityLabel={`${s.title}. ${s.genre}`}
                 onPress={() => openShow(s)}
-                style={({ pressed }) => [
-                  {
-                    width: u(80),
-                    height: u(130),
-                    borderRadius: 6,
-                    overflow: 'hidden',
-                    justifyContent: 'flex-end',
-                    experimental_backgroundImage: `linear-gradient(170deg, ${s.color}, ${home.bg})`,
-                  },
-                  pressed && { opacity: 0.85 },
-                ]}
+                style={{
+                  width: u(80),
+                  height: u(130),
+                  borderRadius: 6,
+                  overflow: 'hidden',
+                  justifyContent: 'flex-end',
+                  experimental_backgroundImage: `linear-gradient(170deg, ${s.color}, ${home.bg})`,
+                }}
               >
                 {coverSource(s) ? (
                   <Image
@@ -166,7 +171,7 @@ export function HomeTop({
                 >
                   {s.title}
                 </T>
-              </Pressable>
+              </Pressy>
             ))}
           </ScrollView>
         </>

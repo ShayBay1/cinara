@@ -5,6 +5,7 @@ import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Icon } from '@/components/Icon';
+import { Pressy } from '@/components/Pressy';
 import { T } from '@/components/ui';
 import type { Show } from '@/data';
 import { coverSource } from '@/data/covers';
@@ -152,12 +153,12 @@ export default function SearchScreen() {
               <View style={{ gap: 10 }}>
                 <T style={styles.h2}>Shows</T>
                 {results.showHits.map((s) => (
-                  <Pressable
+                  <Pressy
                     key={s.id}
                     accessibilityRole="button"
                     accessibilityLabel={`${s.title}. ${s.genre}`}
                     onPress={() => openShow(s)}
-                    style={({ pressed }) => [styles.showRow, pressed && { opacity: 0.85 }]}
+                    style={styles.showRow}
                   >
                     <View style={[styles.poster, { backgroundColor: s.color }]}>
                       {coverSource(s) ? (
@@ -193,7 +194,7 @@ export default function SearchScreen() {
                         {s.tagline}
                       </T>
                     </View>
-                  </Pressable>
+                  </Pressy>
                 ))}
               </View>
             ) : null}
@@ -201,7 +202,7 @@ export default function SearchScreen() {
               <View style={{ gap: 10 }}>
                 <T style={styles.h2}>Cast</T>
                 {results.castHits.map(({ show, c, index }) => (
-                  <Pressable
+                  <Pressy
                     key={`${show.id}-${index}`}
                     accessibilityRole="button"
                     accessibilityLabel={`${realName(c.actorName) || 'Actor'}, plays ${c.role} in ${show.title}`}
@@ -212,7 +213,7 @@ export default function SearchScreen() {
                         params: { showId: show.id, index: String(index) },
                       });
                     }}
-                    style={({ pressed }) => [styles.showRow, pressed && { opacity: 0.85 }]}
+                    style={styles.showRow}
                   >
                     <View style={[styles.face, { backgroundColor: tintFor(c.role) }]}>
                       <T style={{ fontFamily: fonts.serif, fontSize: 22, color: colors.text }}>
@@ -227,7 +228,7 @@ export default function SearchScreen() {
                         style={{ fontFamily: fonts.bodyBold, fontSize: 12, color: colors.muted }}
                       >{`Plays ${c.role} · ${show.title}`}</T>
                     </View>
-                  </Pressable>
+                  </Pressy>
                 ))}
               </View>
             ) : null}

@@ -5,14 +5,17 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { Develop } from '@/components/Develop';
 import { Icon } from '@/components/Icon';
+import { Pressy } from '@/components/Pressy';
 import { Reel } from '@/components/Reel';
 import { Screen } from '@/components/Screen';
+import { Ghost } from '@/components/Skeleton';
 import { SwitchRow, T } from '@/components/ui';
 import type { Show } from '@/data';
 import { coverSource } from '@/data/covers';
 import { useShows } from '@/hooks/queries';
 import { useNow } from '@/hooks/useNow';
 import { useReminder } from '@/hooks/useReminder';
+import { haptic } from '@/lib/haptics';
 import { countdownParts, premiereStage, upcomingPremieres, type Premiere } from '@/lib/premieres';
 import { cancelReminder, scheduleNextPremiere } from '@/lib/reminders';
 import { dayLabel, easternParts, SLOT_LABEL } from '@/lib/schedule';
@@ -58,7 +61,10 @@ export default function ScheduleScreen() {
               accessibilityRole="tab"
               accessibilityState={{ selected: on }}
               accessibilityLabel={`${label}${has ? ', premiere at 8/7c' : ', no premiere'}`}
-              onPress={() => setPicked(i)}
+              onPress={() => {
+                haptic.pick();
+                setPicked(i);
+              }}
               style={[styles.day, on && styles.dayOn]}
             >
               <T style={[styles.dayName, on && { color: colors.ink }]}>
@@ -79,7 +85,12 @@ export default function ScheduleScreen() {
       <RemindEveryNight premieres={all} />
 
       <View style={{ gap: 12, marginTop: 8 }}>
-        {tonight.length ? (
+        {shows.isPending ? (
+          <>
+            <Ghost style={{ height: 136, borderRadius: 14 }} />
+            <Ghost style={{ height: 136, borderRadius: 14 }} />
+          </>
+        ) : tonight.length ? (
           tonight.map((p) => <Night key={`${p.show.id}-${p.drop.from}`} premiere={p} now={now} />)
         ) : (
           <View style={styles.empty}>
@@ -154,6 +165,8 @@ function RemindEveryNight({ premieres }: { premieres: Premiere[] }) {
       }
     } finally {
       setBusy(false);
+      if (on) haptic.success();
+      else haptic.tap();
     }
   };
 
@@ -190,7 +203,7 @@ function Night({ premiere, now }: { premiere: Premiere; now: Date }) {
           : `${dayLabel(at, now) === 'tonight' ? 'Tonight' : DAYS[easternParts(at).weekday]} · ${SLOT_LABEL}`;
 
   return (
-    <Pressable
+    <Pressy
       accessibilityRole="button"
       accessibilityLabel={`${show.title}, episodes ${drop.from} to ${drop.to}. ${line}.`}
       onPress={() =>
@@ -198,11 +211,7 @@ function Night({ premiere, now }: { premiere: Premiere; now: Date }) {
           ? openLive(show)
           : router.push({ pathname: '/show/[showId]', params: { showId: show.id } })
       }
-      style={({ pressed }) => [
-        styles.night,
-        stage === 'live' && { borderColor: colors.live },
-        pressed && { opacity: 0.9 },
-      ]}
+      style={[styles.night, stage === 'live' && { borderColor: colors.live }]}
     >
       <Develop developed={onNow || stub} style={styles.poster}>
         <View style={[StyleSheet.absoluteFill, { backgroundColor: show.color }]} />
@@ -275,7 +284,7 @@ function Night({ premiere, now }: { premiere: Premiere; now: Date }) {
           />
         </Pressable>
       )}
-    </Pressable>
+    </Pressy>
   );
 }
 

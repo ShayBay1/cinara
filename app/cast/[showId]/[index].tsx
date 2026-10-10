@@ -4,6 +4,7 @@ import { ActivityIndicator, Pressable, ScrollView, StyleSheet, View } from 'reac
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Icon } from '@/components/Icon';
+import { Pressy } from '@/components/Pressy';
 import { Reel } from '@/components/Reel';
 import { Button, HumanStamp, T } from '@/components/ui';
 import { coverSource } from '@/data/covers';
@@ -132,12 +133,12 @@ export default function CastScreen() {
       <View style={styles.section}>
         <T style={styles.h2}>{roles.length > 1 ? 'Their shows' : 'Their show'}</T>
         {roles.map(({ s, c: role }) => (
-          <Pressable
+          <Pressy
             key={`${s.id}-${role.role}`}
             accessibilityRole="button"
             accessibilityLabel={`${s.title}, as ${role.role}`}
             onPress={() => router.push({ pathname: '/show/[showId]', params: { showId: s.id } })}
-            style={({ pressed }) => [styles.showRow, pressed && { opacity: 0.85 }]}
+            style={styles.showRow}
           >
             <View style={[styles.poster, { backgroundColor: s.color }]}>
               {coverSource(s) ? (
@@ -156,7 +157,7 @@ export default function CastScreen() {
                 style={{ fontFamily: fonts.bodyBold, fontSize: 12, color: colors.muted }}
               >{`As ${role.role} · ${s.genre}`}</T>
             </View>
-          </Pressable>
+          </Pressy>
         ))}
       </View>
 

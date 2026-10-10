@@ -8,6 +8,7 @@ import { Alert, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-
 
 import { Develop } from '@/components/Develop';
 import { Icon } from '@/components/Icon';
+import { Pressy } from '@/components/Pressy';
 import { Reel } from '@/components/Reel';
 import { Screen } from '@/components/Screen';
 import { Avatar, Button, T } from '@/components/ui';
@@ -224,14 +225,14 @@ export default function ProfileScreen() {
             contentContainerStyle={{ paddingHorizontal: 16, gap: 10 }}
           >
             {saved.map((s) => (
-              <Pressable
+              <Pressy
                 key={s.id}
                 accessibilityRole="button"
                 accessibilityLabel={s.title}
                 onPress={() =>
                   router.push({ pathname: '/show/[showId]', params: { showId: s.id } })
                 }
-                style={({ pressed }) => [{ width: 104, gap: 6 }, pressed && { opacity: 0.85 }]}
+                style={{ width: 104, gap: 6 }}
               >
                 <View style={[styles.poster, { backgroundColor: s.color }]}>
                   {coverSource(s) ? (
@@ -253,7 +254,7 @@ export default function ProfileScreen() {
                 >
                   {s.title}
                 </T>
-              </Pressable>
+              </Pressy>
             ))}
           </ScrollView>
         ) : (

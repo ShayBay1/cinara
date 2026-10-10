@@ -5,7 +5,9 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Develop } from '@/components/Develop';
 import { Icon } from '@/components/Icon';
+import { Pressy } from '@/components/Pressy';
 import { HomeTop } from '@/components/launch/HomeTop';
+import { GhostRow } from '@/components/Skeleton';
 import { Avatar, ErrorState, T } from '@/components/ui';
 import type { Friend, Show } from '@/data';
 import { coverSource } from '@/data/covers';
@@ -55,6 +57,12 @@ export default function HomeScreen() {
             onRetry={() => void shows.refetch()}
           />
         ) : null}
+        {shows.isPending ? (
+          <>
+            <GhostRow width={176} height={99} />
+            <GhostRow width={150} height={40} />
+          </>
+        ) : null}
         <ContinueWatching shows={list} />
         <FriendsWatching shows={list} />
         <Tropes shows={list} />
@@ -103,12 +111,12 @@ function ContinueWatching({ shows }: { shows: Show[] }) {
           const title = show.episodeTitles[p.episode - 1];
           const drop = dropOf(p.episode, show.episodeCount);
           return (
-            <Pressable
+            <Pressy
               key={show.id}
               accessibilityRole="button"
               accessibilityLabel={`Continue ${show.title}, episode ${p.episode}${left > 0 ? `, ${fmt(left)} left` : ''}`}
               onPress={() => playEpisode(show.id, p.episode)}
-              style={({ pressed }) => [{ width: 176, gap: 6 }, pressed && { opacity: 0.85 }]}
+              style={{ width: 176, gap: 6 }}
             >
               <View style={[styles.thumb, { backgroundColor: show.color }]}>
                 {coverSource(show) ? (
@@ -139,7 +147,7 @@ function ContinueWatching({ shows }: { shows: Show[] }) {
                   ? `${fmt(left)} left · ${drop.to - p.episode} more this drop`
                   : `Episode ${p.episode} of ${drop.to}`}
               </T>
-            </Pressable>
+            </Pressy>
           );
         })}
       </ScrollView>
@@ -163,16 +171,12 @@ function FriendsWatching({ shows }: { shows: Show[] }) {
           const show = shows.find((s) => s.id === f.watching.showId);
           if (!show) return null;
           return (
-            <Pressable
+            <Pressy
               key={f.id}
               accessibilityRole="button"
               accessibilityLabel={`${f.handle} is ${f.watching.watchingNow ? 'watching' : 'on'} ${show.title}, episode ${f.watching.episode}. Watch with them.`}
               onPress={() => playEpisode(show.id, f.watching.episode)}
-              style={({ pressed }) => [
-                styles.friendRow,
-                i > 0 && styles.rule,
-                pressed && { opacity: 0.85 },
-              ]}
+              style={[styles.friendRow, i > 0 && styles.rule]}
             >
               <Avatar
                 handle={f.handle}
@@ -194,7 +198,7 @@ function FriendsWatching({ shows }: { shows: Show[] }) {
               <T style={{ fontFamily: fonts.bodyHeavy, fontSize: 12, color: colors.gold }}>
                 Watch with them
               </T>
-            </Pressable>
+            </Pressy>
           );
         })}
       </View>
@@ -216,18 +220,15 @@ function Tropes({ shows }: { shows: Show[] }) {
         contentContainerStyle={{ paddingHorizontal: 16, gap: 8 }}
       >
         {tropes.map((t) => (
-          <Pressable
+          <Pressy
             key={t}
             accessibilityRole="button"
             accessibilityLabel={`Shows with the trope ${t}`}
             onPress={() => router.push({ pathname: '/search', params: { q: t } })}
-            style={({ pressed }) => [
-              styles.chip,
-              pressed && { backgroundColor: colors.surfaceRaised },
-            ]}
+            style={styles.chip}
           >
             <T style={{ fontFamily: fonts.bodyBold, fontSize: 13, color: colors.text }}>{t}</T>
-          </Pressable>
+          </Pressy>
         ))}
       </ScrollView>
     </View>

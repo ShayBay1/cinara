@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Develop } from '@/components/Develop';
 import { Icon } from '@/components/Icon';
+import { Pressy } from '@/components/Pressy';
 import { Button, T } from '@/components/ui';
 import { coverSource } from '@/data/covers';
 import { useShows } from '@/hooks/queries';
@@ -81,7 +82,8 @@ export default function WelcomeScreen() {
           {list.map((s) => {
             const on = picked.includes(s.id);
             return (
-              <Pressable
+              <Pressy
+                feel="pick"
                 key={s.id}
                 accessibilityRole="checkbox"
                 accessibilityState={{ checked: on }}
@@ -122,7 +124,7 @@ export default function WelcomeScreen() {
                 >
                   {s.genre}
                 </T>
-              </Pressable>
+              </Pressy>
             );
           })}
         </View>

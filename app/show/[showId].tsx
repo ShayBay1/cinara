@@ -4,7 +4,9 @@ import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Develop } from '@/components/Develop';
+import { Glass } from '@/components/Glass';
 import { Icon } from '@/components/Icon';
+import { Pressy } from '@/components/Pressy';
 import { Reel } from '@/components/Reel';
 import { ErrorState, T } from '@/components/ui';
 import { FREE_EPISODES, type Show } from '@/data';
@@ -88,14 +90,16 @@ function ShowPage({ show }: { show: Show }) {
           <View style={styles.artGlow} />
         )}
         <View style={styles.artFade} />
-        <Pressable
+        <Pressy
           accessibilityRole="button"
           accessibilityLabel="Back"
           onPress={() => router.back()}
           style={[styles.back, { top: insets.top + 6 }]}
         >
-          <Icon name="back" />
-        </Pressable>
+          <Glass radius={22} interactive style={styles.glassBtn}>
+            <Icon name="back" />
+          </Glass>
+        </Pressy>
       </View>
 
       <View style={styles.body}>
@@ -105,10 +109,10 @@ function ShowPage({ show }: { show: Show }) {
         <T style={styles.meta}>{seasonLine}</T>
 
         <View style={{ flexDirection: 'row', gap: 10, marginTop: 8 }}>
-          <Pressable
+          <Pressy
             accessibilityRole="button"
             onPress={() => resumeEpisode(show.id, resumeEp ?? 1)}
-            style={({ pressed }) => [styles.primary, pressed && { opacity: 0.88 }]}
+            style={styles.primary}
           >
             <Icon name="play" size={18} color={colors.ink} filled />
             <T style={styles.primaryText}>
@@ -127,19 +131,20 @@ function ShowPage({ show }: { show: Show }) {
                 />
               </View>
             ) : null}
-          </Pressable>
-          <Pressable
+          </Pressy>
+          <Pressy
             accessibilityRole="button"
             accessibilityLabel={inList ? 'Remove from My List' : 'Add to My List'}
             accessibilityState={{ selected: inList }}
+            feel={inList ? 'tap' : 'success'}
             onPress={() => toggleList(show.id)}
             style={[styles.square, inList && { borderColor: colors.gold }]}
           >
             <Icon name={inList ? 'check' : 'plus'} color={inList ? colors.gold : colors.text} />
-          </Pressable>
+          </Pressy>
         </View>
         {canStartOver ? (
-          <Pressable
+          <Pressy
             accessibilityRole="button"
             accessibilityLabel={
               special
@@ -147,13 +152,13 @@ function ShowPage({ show }: { show: Show }) {
                 : `Start Episode ${resumeEp} over from the beginning`
             }
             onPress={() => startOver(show.id, resumeEp!)}
-            style={({ pressed }) => [styles.startOver, pressed && { opacity: 0.8 }]}
+            style={styles.startOver}
           >
             <Icon name="replay" size={16} color={colors.text} />
             <T style={{ fontFamily: fonts.bodyHeavy, fontSize: 14, color: colors.text }}>
               {special ? 'Start over' : `Start Episode ${resumeEp} over`}
             </T>
-          </Pressable>
+          </Pressy>
         ) : null}
 
         {show.synopsis ? <T style={styles.synopsis}>{show.synopsis}</T> : null}
@@ -226,7 +231,7 @@ function ShowPage({ show }: { show: Show }) {
           {show.cast.map((c, index) => {
             const name = c.actorName.startsWith('[') ? '[Actor]' : c.actorName;
             return (
-              <Pressable
+              <Pressy
                 key={c.role}
                 accessibilityRole="button"
                 accessibilityLabel={`${name}, plays ${c.role}. Open their page.`}
@@ -236,10 +241,7 @@ function ShowPage({ show }: { show: Show }) {
                     params: { showId: show.id, index: String(index) },
                   })
                 }
-                style={({ pressed }) => [
-                  { width: 80, alignItems: 'center', gap: 6 },
-                  pressed && { opacity: 0.8 },
-                ]}
+                style={{ width: 80, alignItems: 'center', gap: 6 }}
               >
                 <View style={[styles.face, { backgroundColor: tintFor(c.role) }]}>
                   <T style={{ fontFamily: fonts.serif, fontSize: 26, color: colors.text }}>
@@ -268,7 +270,7 @@ function ShowPage({ show }: { show: Show }) {
                 >
                   {c.role}
                 </T>
-              </Pressable>
+              </Pressy>
             );
           })}
         </ScrollView>
@@ -330,12 +332,12 @@ function FilmStrip({
           const current = resumeEp === n;
           const title = show.episodeTitles[n - 1] ?? `Episode ${n}`;
           return (
-            <Pressable
+            <Pressy
               key={n}
               accessibilityRole="button"
               accessibilityLabel={`Episode ${n}, ${title}${watched ? ', watched' : current ? ', in progress' : locked ? ', for members' : ''}`}
               onPress={() => watch(show, n)}
-              style={({ pressed }) => [{ width: 86, gap: 5 }, pressed && { opacity: 0.8 }]}
+              style={{ width: 86, gap: 5 }}
             >
               <Develop
                 developed={watched || current}
@@ -359,7 +361,7 @@ function FilmStrip({
               <T style={[styles.frameTitle, current && { color: colors.gold }]} numberOfLines={1}>
                 {current ? 'Resume' : title}
               </T>
-            </Pressable>
+            </Pressy>
           );
         })}
       </ScrollView>
@@ -499,16 +501,8 @@ const styles = StyleSheet.create({
     experimental_backgroundImage:
       'linear-gradient(180deg, rgba(21,16,11,0.35) 0%, rgba(21,16,11,0) 25%, rgba(21,16,11,0) 50%, rgba(21,16,11,1) 100%)',
   },
-  back: {
-    position: 'absolute',
-    left: 8,
-    width: 44,
-    height: 44,
-    borderRadius: 22,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: 'rgba(21,16,11,0.5)',
-  },
+  back: { position: 'absolute', left: 10, width: 44, height: 44 },
+  glassBtn: { flex: 1, alignItems: 'center', justifyContent: 'center' },
   body: { paddingHorizontal: 16, marginTop: -64, gap: 8 },
   eyebrow: {
     fontFamily: fonts.engraved,

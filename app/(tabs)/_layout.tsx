@@ -1,10 +1,12 @@
 import { router, Tabs } from 'expo-router';
-import { Platform, View, type ColorValue } from 'react-native';
+import { Platform, StyleSheet, View, type ColorValue } from 'react-native';
 
 import { Icon, type IconName } from '@/components/Icon';
+import { Glass } from '@/components/Glass';
 import { Avatar } from '@/components/ui';
 import { useMe, useShows } from '@/hooks/queries';
 import { useAppStore } from '@/store/useAppStore';
+import { haptic } from '@/lib/haptics';
 import { soonestPremiere } from '@/lib/premieres';
 import { colors, fonts } from '@/theme/tokens';
 
@@ -40,11 +42,13 @@ export default function TabsLayout() {
   const shows = useShows();
   return (
     <Tabs
+      screenListeners={{ tabPress: () => haptic.pick() }}
       screenOptions={{
         headerShown: false,
         tabBarActiveTintColor: colors.gold,
-        tabBarInactiveTintColor: '#A8977A',
+        tabBarInactiveTintColor: colors.muted,
         tabBarLabelStyle: { fontFamily: fonts.bodyBold, fontSize: 11 },
+        // The tab bar floats over the content as glass: posters and key art scroll underneath it.
         tabBarStyle: {
           position: 'absolute',
           marginHorizontal: 12,
@@ -52,12 +56,16 @@ export default function TabsLayout() {
           height: 66,
           paddingTop: 6,
           paddingBottom: 8,
-          borderRadius: 24,
+          borderRadius: 33,
           borderTopWidth: 0,
-          borderWidth: 1,
-          borderColor: '#3A2E20',
-          backgroundColor: 'rgba(30,23,16,0.97)',
+          backgroundColor: 'transparent',
+          elevation: 0,
+          shadowColor: '#000',
+          shadowOpacity: 0.35,
+          shadowRadius: 18,
+          shadowOffset: { width: 0, height: 8 },
         },
+        tabBarBackground: () => <Glass radius={33} style={StyleSheet.absoluteFill} />,
         sceneStyle: { backgroundColor: colors.ink },
       }}
     >

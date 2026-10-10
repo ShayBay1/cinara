@@ -3,6 +3,7 @@ import { Alert, Platform } from 'react-native';
 
 import type { Show } from '@/data';
 import { addPremiereToCalendar } from '@/lib/calendarCard';
+import { haptic } from '@/lib/haptics';
 import { cancelReminder, scheduleNextPremiere } from '@/lib/reminders';
 import { capitalize, dayLabel, SLOT_LABEL } from '@/lib/schedule';
 import { useAppStore } from '@/store/useAppStore';
@@ -20,11 +21,13 @@ export function useReminder(show: Show | undefined) {
       if (notificationId) {
         await cancelReminder(notificationId);
         setReminder(show.id, null);
+        haptic.tap();
         return;
       }
       const result = await scheduleNextPremiere(show);
       if (result.ok) {
         setReminder(show.id, result.notificationId);
+        haptic.success();
         // The phone's own reminder card: a calendar event they can keep, with alerts before 8/7c.
         const card = await addPremiereToCalendar(show);
         if (card === 'unavailable') {

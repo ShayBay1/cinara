@@ -8,6 +8,8 @@ import {
   type ViewStyle,
 } from 'react-native';
 
+import { haptic } from '@/lib/haptics';
+
 /** The signature transition: sepia to full colour. */
 export const DEVELOP_MS = 600;
 
@@ -26,6 +28,12 @@ export function Develop({
   style?: StyleProp<ViewStyle>;
 }) {
   const sepia = useRef(new Animated.Value(developed ? 0 : 1)).current;
+  const was = useRef(developed);
+  useEffect(() => {
+    // A soft knock as the colour comes in (only when it changes, never on first show).
+    if (developed && !was.current) haptic.develop();
+    was.current = developed;
+  }, [developed]);
   useEffect(() => {
     let cancelled = false;
     void AccessibilityInfo.isReduceMotionEnabled().then((reduce) => {
