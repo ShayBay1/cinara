@@ -41,8 +41,6 @@ interface AppState {
   notifyComingSoon: boolean;
   /** "Smooth rotation": the glide turn. Off: the classic flip (hold past 45 degrees). */
   followTurn: boolean;
-  /** The first-run "Pick three" has been seen. */
-  onboarded: boolean;
   recentSearches: string[];
   stubs: TicketStub[];
 
@@ -55,7 +53,6 @@ interface AppState {
   setAvatarUrl: (url: string | null) => void;
   setNotifyComingSoon: (v: boolean) => void;
   setFollowTurn: (v: boolean) => void;
-  setOnboarded: (v: boolean) => void;
   addRecentSearch: (q: string) => void;
   clearRecentSearches: () => void;
   addStub: (stub: TicketStub) => void;
@@ -73,7 +70,6 @@ export const useAppStore = create<AppState>()(
       avatarUrl: null,
       notifyComingSoon: false,
       followTurn: true,
-      onboarded: false,
       recentSearches: [],
       stubs: [],
 
@@ -99,7 +95,6 @@ export const useAppStore = create<AppState>()(
       setAvatarUrl: (url) => set({ avatarUrl: url }),
       setNotifyComingSoon: (v) => set({ notifyComingSoon: v }),
       setFollowTurn: (v) => set({ followTurn: v }),
-      setOnboarded: (v) => set({ onboarded: v }),
       addRecentSearch: (q) =>
         set((s) => {
           const t = q.trim();
