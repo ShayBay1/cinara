@@ -50,7 +50,7 @@ export default function HomeScreen() {
         />
       }
     >
-      <HomeSky now={now} />
+      <HomeSky now={now} accent={(featured ?? premiere?.show)?.color} />
       <HomeTop shows={list} premiere={premiere} featured={featured} now={now} />
       <View style={{ paddingHorizontal: 16 }}>
         {shows.isError ? (

@@ -18,6 +18,7 @@ import Svg, {
 } from 'react-native-svg';
 
 import { homeLogo, useLaunchFrame } from '@/lib/launchFrame';
+import { glowOf } from '@/lib/color';
 import { homeSky } from '@/lib/sun';
 import { home } from '@/theme/tokens';
 
@@ -31,7 +32,7 @@ const GRAIN = require('../../../assets/home/grain.png');
  * Warm colours come forward and the cool ones fall back, so the card sits in front of a deep room.
  * Both skies settle into home.deep, so the rest of Home carries on below without a seam.
  */
-export function HomeSky({ now }: { now: Date }) {
+export function HomeSky({ now, accent }: { now: Date; accent?: string }) {
   const { width: W, height: H } = useWindowDimensions();
   const insets = useSafeAreaInsets();
   const f = useLaunchFrame();
@@ -52,12 +53,44 @@ export function HomeSky({ now }: { now: Date }) {
       <Animated.View style={[StyleSheet.absoluteFill, dawnStyle]}>
         <Dunes W={W} H={H} logo={logo} u={f.u} />
       </Animated.View>
+      {accent ? <PosterGlow color={glowOf(accent)} W={W} H={H} f={f} /> : null}
       <Image
         source={GRAIN}
         resizeMode="repeat"
         style={[StyleSheet.absoluteFill, { opacity: 0.05 }]}
       />
     </View>
+  );
+}
+
+/**
+ * The premiere's own colour, glowing softly around the card, like light thrown off a screen.
+ * Warm sky, cool poster light (or the other way round): the contrast gives the card depth.
+ */
+function PosterGlow({
+  color,
+  W,
+  H,
+  f,
+}: {
+  color: string;
+  W: number;
+  H: number;
+  f: ReturnType<typeof useLaunchFrame>;
+}) {
+  const cx = f.x(13 + 131);
+  const cy = f.y(126 + 150);
+  return (
+    <Svg width={W} height={H} style={StyleSheet.absoluteFill}>
+      <Defs>
+        <RadialGradient id="pgGlow" cx={cx} cy={cy} r={f.u(230)} gradientUnits="userSpaceOnUse">
+          <Stop offset="0" stopColor={color} stopOpacity={0.42} />
+          <Stop offset="0.55" stopColor={color} stopOpacity={0.16} />
+          <Stop offset="1" stopColor={color} stopOpacity={0} />
+        </RadialGradient>
+      </Defs>
+      <Rect width={W} height={H} fill="url(#pgGlow)" />
+    </Svg>
   );
 }
 

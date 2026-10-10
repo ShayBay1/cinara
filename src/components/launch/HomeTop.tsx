@@ -8,6 +8,7 @@ import { Icon } from '@/components/Icon';
 import { Pressy } from '@/components/Pressy';
 import { Reel } from '@/components/Reel';
 import { GhostCard } from '@/components/Skeleton';
+import { LivingCard } from '@/components/launch/LivingCard';
 import { T } from '@/components/ui';
 import type { Show } from '@/data';
 import { coverSource } from '@/data/covers';
@@ -104,7 +105,9 @@ export function HomeTop({
       </View>
 
       {show ? (
-        <TonightCard show={show} premiere={cardPremiere} now={now} />
+        <LivingCard style={{ marginLeft: x(13) }} width={u(262)} height={u(300)}>
+          <TonightCard show={show} premiere={cardPremiere} now={now} />
+        </LivingCard>
       ) : (
         <GhostCard style={{ marginLeft: x(13), width: u(262), height: u(300) }} />
       )}
@@ -242,9 +245,7 @@ function TonightCard({
       accessibilityLabel={`${show.title}. ${eyebrow}`}
       onPress={() => openShow(show)}
       style={{
-        marginLeft: x(13),
-        width: u(262),
-        height: u(300),
+        flex: 1,
         overflow: 'hidden',
         borderWidth: u(1),
         borderColor: home.gold,
