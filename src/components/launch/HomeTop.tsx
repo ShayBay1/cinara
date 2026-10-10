@@ -1,6 +1,7 @@
 import { Image } from 'expo-image';
 import { router } from 'expo-router';
 import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Glass } from '@/components/Glass';
 import { Icon } from '@/components/Icon';
@@ -11,7 +12,7 @@ import { T } from '@/components/ui';
 import type { Show } from '@/data';
 import { coverSource } from '@/data/covers';
 import { useReminder } from '@/hooks/useReminder';
-import { useLaunchFrame } from '@/lib/launchFrame';
+import { homeLogo, useLaunchFrame } from '@/lib/launchFrame';
 import { playEpisode } from '@/lib/play';
 import { countdownParts, premiereFor, premiereStage, type Premiere } from '@/lib/premieres';
 import { capitalize, dayLabel, SLOT_LABEL } from '@/lib/schedule';
@@ -41,23 +42,28 @@ export function HomeTop({
   featured?: Show;
   now: Date;
 }) {
-  const { u, x, y } = useLaunchFrame();
+  const frame = useLaunchFrame();
+  const { u, x, y } = frame;
+  const insets = useSafeAreaInsets();
+  const logo = homeLogo(frame, insets.top);
+  // The search pill is a full capsule (curves read as friendly), centred on the logo.
+  const searchH = Math.max(44, u(40));
   // The featured title owns the card the launch film lands on; otherwise tonight's premiere.
   const show = featured ?? premiere?.show;
   const cardPremiere = featured ? premiereFor(featured, now) : premiere;
 
   return (
     <View>
-      {/* Header: everything above the card */}
+      {/* Header: everything above the card. The logo sits halfway between the top of the screen and the card. */}
       <View style={{ height: y(126) }}>
         <Image
           source={LOGO}
           style={{
             position: 'absolute',
-            left: x(17.15),
-            top: y(45.35),
-            width: u(78.64),
-            height: u(78.64),
+            left: logo.left,
+            top: logo.top,
+            width: logo.size,
+            height: logo.size,
           }}
           contentFit="contain"
           accessibilityLabel="Snippets"
@@ -71,19 +77,19 @@ export function HomeTop({
             position: 'absolute',
             left: x(96),
             width: u(179),
-            top: y(60),
-            height: Math.max(44, u(40)),
+            top: logo.cy - searchH / 2,
+            height: searchH,
           }}
         >
           <Glass
-            radius={u(8)}
+            radius={searchH / 2}
             interactive
             style={{
               flex: 1,
               flexDirection: 'row',
               alignItems: 'center',
               gap: u(8),
-              paddingHorizontal: u(13),
+              paddingHorizontal: u(15),
             }}
           >
             <Icon name="search" size={u(16)} color={home.fieldIcon} />

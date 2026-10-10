@@ -40,6 +40,8 @@ export const fonts = {
 /** Home's warm darkroom palette (matches the last frame of the launch animation). */
 export const home = {
   bg: '#15100B',
+  /** Where both Home skies settle at the bottom: near-black with a little teal. */
+  deep: '#0D1213',
   field: '#1E1710',
   fieldLine: '#3A2E20',
   fieldIcon: '#A8977A',

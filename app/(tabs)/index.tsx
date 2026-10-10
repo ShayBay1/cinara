@@ -6,6 +6,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Develop } from '@/components/Develop';
 import { Icon } from '@/components/Icon';
 import { Pressy } from '@/components/Pressy';
+import { HomeSky } from '@/components/launch/HomeSky';
 import { HomeTop } from '@/components/launch/HomeTop';
 import { GhostRow } from '@/components/Skeleton';
 import { Avatar, ErrorState, T } from '@/components/ui';
@@ -38,7 +39,7 @@ export default function HomeScreen() {
 
   return (
     <ScrollView
-      style={{ flex: 1, backgroundColor: home.bg }}
+      style={{ flex: 1, backgroundColor: home.deep }}
       contentContainerStyle={{ paddingBottom: insets.bottom + 120 }}
       contentInsetAdjustmentBehavior="never"
       refreshControl={
@@ -49,6 +50,7 @@ export default function HomeScreen() {
         />
       }
     >
+      <HomeSky now={now} />
       <HomeTop shows={list} premiere={premiere} featured={featured} now={now} />
       <View style={{ paddingHorizontal: 16 }}>
         {shows.isError ? (
