@@ -31,7 +31,7 @@ export function useLaunchFrame() {
 /** Home's logo: centred between the top of the screen and the premiere card, clear of the clock. */
 export function homeLogo(f: ReturnType<typeof launchFrame>, safeTop: number) {
   const size = f.u(78.64);
-  const top = Math.max((f.y(126) - size) / 2, safeTop * 0.62);
+  const top = Math.max((f.y(126) - size) / 2, safeTop * 0.72);
   const left = f.x(17.15);
   return { left, top, size, cx: left + size / 2, cy: top + size / 2 };
 }
