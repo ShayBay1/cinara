@@ -26,6 +26,8 @@ const config: ExpoConfig = {
     supportsTablet: false,
     infoPlist: {
       ITSAppUsesNonExemptEncryption: false,
+      // The premiere countdown in the Dynamic Island and on the lock screen.
+      NSSupportsLiveActivities: true,
     },
   },
   android: {
@@ -42,6 +44,26 @@ const config: ExpoConfig = {
   },
   plugins: [
     'expo-router',
+    [
+      'expo-widgets',
+      {
+        widgets: [
+          {
+            name: 'TonightWidget',
+            displayName: 'Tonight',
+            description: 'The next premiere and a live countdown to 8/7c.',
+            ios: {
+              supportedFamilies: [
+                'systemSmall',
+                'systemMedium',
+                'accessoryRectangular',
+                'accessoryInline',
+              ],
+            },
+          },
+        ],
+      },
+    ],
     'expo-font',
     'expo-video',
     [

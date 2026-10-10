@@ -1,4 +1,5 @@
 import { Image } from 'expo-image';
+import { useEffect } from 'react';
 import { router } from 'expo-router';
 import { Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -17,6 +18,7 @@ import { useNow } from '@/hooks/useNow';
 import { soonestPremiere } from '@/lib/premieres';
 import { dropOf } from '@/lib/schedule';
 import { playEpisode } from '@/lib/play';
+import { syncPremiereActivity, syncTonightWidget } from '@/lib/widgetSync';
 import { useAppStore } from '@/store/useAppStore';
 import { colors, fonts, home, radius } from '@/theme/tokens';
 
@@ -36,6 +38,15 @@ export default function HomeScreen() {
   const list = shows.data ?? [];
   const premiere = soonestPremiere(list, now);
   const featured = list.find((s) => s.featured);
+  const reminders = useAppStore((s) => s.reminders);
+  // Home-screen widget and Dynamic Island countdown (iPhone builds only). Re-synced each minute.
+  const minute = Math.floor(now.getTime() / 60_000);
+  useEffect(() => {
+    if (!list.length) return;
+    syncTonightWidget(list);
+    void syncPremiereActivity(list, Object.keys(reminders));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [list, reminders, minute]);
 
   return (
     <ScrollView
