@@ -5,7 +5,7 @@ import { Animated, Pressable, StyleSheet } from 'react-native';
 /**
  * The painted opening: the Snippets reel in oil-paint strokes (repainted every frame, like
  * Scott Free's hand-painted logo). The reel turns, the name appears, and the window opens into
- * warm light; then the light dissolves into the Feed, which has been loading underneath.
+ * warm light, to a film-projector stinger; then the light dissolves into the Feed, which has been loading underneath.
  * The drawn-in-code version lives in DrawnIntro.tsx.
  */
 const SOURCE = require('../../../assets/launch/snippets-opening-painted.mp4');
@@ -20,7 +20,8 @@ export function LaunchIntro({ onReady, onDone }: { onReady: () => void; onDone: 
   const finished = useRef(false);
   const player = useVideoPlayer(SOURCE, (p) => {
     p.loop = false;
-    p.muted = true;
+    // The projector stinger. Follows the ringer switch: silent mode keeps it quiet.
+    p.audioMixingMode = 'mixWithOthers';
     p.play();
   });
 
