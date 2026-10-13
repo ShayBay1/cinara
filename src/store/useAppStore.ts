@@ -43,6 +43,8 @@ interface AppState {
   followTurn: boolean;
   recentSearches: string[];
   stubs: TicketStub[];
+  /** How many times the Feed has shown its "swipe up" peek (it stops after a few). */
+  feedHintsSeen: number;
 
   toggleMyList: (showId: string) => void;
   setReminder: (showId: string, notificationId: string | null) => void;
@@ -56,6 +58,7 @@ interface AppState {
   addRecentSearch: (q: string) => void;
   clearRecentSearches: () => void;
   addStub: (stub: TicketStub) => void;
+  bumpFeedHint: () => void;
 }
 
 export const useAppStore = create<AppState>()(
@@ -72,6 +75,7 @@ export const useAppStore = create<AppState>()(
       followTurn: true,
       recentSearches: [],
       stubs: [],
+      feedHintsSeen: 0,
 
       toggleMyList: (showId) =>
         set((s) => {
@@ -109,6 +113,7 @@ export const useAppStore = create<AppState>()(
       clearRecentSearches: () => set({ recentSearches: [] }),
       addStub: (stub) =>
         set((s) => (s.stubs.some((x) => x.id === stub.id) ? {} : { stubs: [stub, ...s.stubs] })),
+      bumpFeedHint: () => set((s) => ({ feedHintsSeen: s.feedHintsSeen + 1 })),
     }),
     {
       name: 'snippets-app',

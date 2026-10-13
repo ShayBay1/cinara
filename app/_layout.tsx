@@ -18,7 +18,9 @@ import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useState } from 'react';
 import { Platform, View } from 'react-native';
 
+import { ArrivalLight } from '@/components/launch/ArrivalLight';
 import { LaunchIntro } from '@/components/launch/LaunchIntro';
+import { useLaunch } from '@/store/launch';
 
 import { lockUpright } from '@/lib/orientationLock';
 import { colors } from '@/theme/tokens';
@@ -47,7 +49,13 @@ export default function RootLayout() {
   const [introReady, setIntroReady] = useState(false);
   const [introDone, setIntroDone] = useState(false);
   const onIntroReady = useCallback(() => setIntroReady(true), []);
-  const onIntroDone = useCallback(() => setIntroDone(true), []);
+  const phase = useLaunch((s) => s.phase);
+  const setPhase = useLaunch((s) => s.setPhase);
+  const onIntroDone = useCallback(() => {
+    setIntroDone(true);
+    setPhase('arriving');
+  }, [setPhase]);
+  const onArrived = useCallback(() => setPhase('done'), [setPhase]);
 
   useEffect(() => {
     if ((fontsLoaded || fontError) && (introReady || introDone)) void SplashScreen.hideAsync();
@@ -90,6 +98,7 @@ export default function RootLayout() {
           />
         </Stack>
       </QueryClientProvider>
+      {phase !== 'done' ? <ArrivalLight go={phase === 'arriving'} onDone={onArrived} /> : null}
       {introDone ? null : <LaunchIntro onReady={onIntroReady} onDone={onIntroDone} />}
     </View>
   );

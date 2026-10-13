@@ -1,6 +1,7 @@
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { Share, StyleSheet, Text, View } from 'react-native';
+import Animated, { interpolate, type SharedValue, useAnimatedStyle } from 'react-native-reanimated';
 
 import { Glass } from '@/components/Glass';
 import { Icon, type IconName } from '@/components/Icon';
@@ -38,12 +39,16 @@ export function ShowCard({
   active,
   now,
   height,
+  entrance,
 }: {
   show: Show;
   active: boolean;
   now: Date;
   height: number;
+  /** 0..1 on the very first card after the opening: the art settles, then the words and buttons arrive. */
+  entrance?: SharedValue<number>;
 }) {
+  const { art, words, rail } = useEntrance(entrance);
   const progress = useAppStore((s) => s.progress[show.id]);
   const reminder = useReminder(show);
   const [liked, setLiked] = useState(false);
@@ -68,10 +73,12 @@ export function ShowCard({
 
   return (
     <View style={{ height, backgroundColor: colors.ink }}>
-      <KenBurns source={coverSource(show)} color={show.color} active={active} />
+      <Animated.View style={[StyleSheet.absoluteFill, art]}>
+        <KenBurns source={coverSource(show)} color={show.color} active={active} />
+      </Animated.View>
       <Fade stops={SHADE} />
 
-      <View style={styles.info} pointerEvents="box-none">
+      <Animated.View style={[styles.info, words]} pointerEvents="box-none">
         {isLive ? (
           <View style={[styles.badge, { backgroundColor: colors.live }]}>
             <Text style={[styles.badgeText, { color: '#fff' }]}>LIVE NOW · NEW EPISODES</Text>
@@ -118,9 +125,9 @@ export function ShowCard({
             onPress={() => router.push({ pathname: '/show/[showId]', params: { showId: show.id } })}
           />
         </View>
-      </View>
+      </Animated.View>
 
-      <View style={styles.rail}>
+      <Animated.View style={[styles.rail, rail]}>
         <Pressy
           accessibilityRole="button"
           accessibilityLabel={`Open ${show.title}`}
@@ -155,13 +162,36 @@ export function ShowCard({
           onPress={() => void reminder.toggle()}
         />
         <RailButton icon="share" label="Share" onPress={share} />
-      </View>
+      </Animated.View>
 
       <View style={styles.track}>
         <View style={[styles.trackFill, { width: `${frac * 100}%` }]} />
       </View>
     </View>
   );
+}
+
+/** Entrance styles for the first card (no-ops when there's no entrance). */
+function useEntrance(e?: SharedValue<number>) {
+  const art = useAnimatedStyle(() => {
+    const v = e ? e.value : 1;
+    return { transform: [{ scale: interpolate(v, [0, 1], [1.08, 1]) }] };
+  });
+  const words = useAnimatedStyle(() => {
+    const v = e ? e.value : 1;
+    return {
+      opacity: interpolate(v, [0.4, 0.8], [0, 1], 'clamp'),
+      transform: [{ translateY: interpolate(v, [0.4, 0.85], [18, 0], 'clamp') }],
+    };
+  });
+  const rail = useAnimatedStyle(() => {
+    const v = e ? e.value : 1;
+    return {
+      opacity: interpolate(v, [0.6, 0.95], [0, 1], 'clamp'),
+      transform: [{ translateX: interpolate(v, [0.6, 1], [26, 0], 'clamp') }],
+    };
+  });
+  return { art, words, rail };
 }
 
 /** The show that's coming next, in the same full-screen frame. */

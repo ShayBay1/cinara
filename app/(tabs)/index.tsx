@@ -1,7 +1,8 @@
 import { router, useIsFocused } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
-import { useCallback, useMemo, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { FlatList, StyleSheet, Text, useWindowDimensions, View, type ViewToken } from 'react-native';
+import Animated, { Easing, interpolate, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { ComingSoonCard, ShowCard } from '@/components/feed/FeedCard';
@@ -12,6 +13,7 @@ import type { ComingSoon, Show } from '@/data';
 import { useComingSoon, useShows } from '@/hooks/queries';
 import { useNow } from '@/hooks/useNow';
 import { premiereFor, premiereStage } from '@/lib/premieres';
+import { useLaunch } from '@/store/launch';
 import { useAppStore } from '@/store/useAppStore';
 import { colors, fonts } from '@/theme/tokens';
 
@@ -30,6 +32,26 @@ export default function FeedScreen() {
   const focused = useIsFocused();
   const progress = useAppStore((s) => s.progress);
   const [active, setActive] = useState(0);
+  const list = useRef<FlatList<Item>>(null);
+
+  // The entrance after the opening: the first show settles out of the light, then its words,
+  // its buttons and the top bar arrive. Later opens (and returning to the tab) skip it.
+  const phase = useLaunch((s) => s.phase);
+  const entrance = useSharedValue(phase === 'done' ? 1 : 0);
+  useEffect(() => {
+    if (phase === 'arriving') {
+      entrance.value = withTiming(1, { duration: 1700, easing: Easing.out(Easing.cubic) });
+    }
+    if (phase === 'done' && entrance.value === 0) entrance.value = 1;
+  }, [phase, entrance]);
+  const topIn = useAnimatedStyle(() => ({
+    opacity: interpolate(entrance.value, [0.55, 0.95], [0, 1], 'clamp'),
+  }));
+
+  // The first few times, peek at the next show so people know to swipe up.
+  const hintsSeen = useAppStore((s) => s.feedHintsSeen);
+  const bumpHint = useAppStore((s) => s.bumpFeedHint);
+  const hinted = useRef(false);
 
   const items = useMemo<Item[]>(() => {
     const list = [...(shows.data ?? [])].sort((a, b) => {
@@ -50,6 +72,20 @@ export default function FeedScreen() {
     .map((s) => premiereFor(s, now))
     .find((p) => p && ['doors', 'live'].includes(premiereStage(p.at, now)));
 
+  useEffect(() => {
+    if (phase !== 'done' || hinted.current || hintsSeen >= 3 || items.length < 2) return;
+    hinted.current = true;
+    const a = setTimeout(() => list.current?.scrollToOffset({ offset: 110, animated: true }), 900);
+    const b = setTimeout(() => {
+      list.current?.scrollToOffset({ offset: 0, animated: true });
+      bumpHint();
+    }, 1500);
+    return () => {
+      clearTimeout(a);
+      clearTimeout(b);
+    };
+  }, [phase, hintsSeen, items.length, bumpHint]);
+
   const onViewable = useRef(({ viewableItems }: { viewableItems: ViewToken[] }) => {
     const first = viewableItems[0];
     if (first?.index != null) setActive(first.index);
@@ -58,11 +94,17 @@ export default function FeedScreen() {
   const render = useCallback(
     ({ item, index }: { item: Item; index: number }) =>
       item.kind === 'show' ? (
-        <ShowCard show={item.show} active={focused && index === active} now={now} height={height} />
+        <ShowCard
+          show={item.show}
+          active={focused && index === active}
+          now={now}
+          height={height}
+          entrance={index === 0 ? entrance : undefined}
+        />
       ) : (
         <ComingSoonCard soon={item.soon} active={focused && index === active} height={height} />
       ),
-    [active, focused, height, now],
+    [active, focused, height, now, entrance],
   );
 
   return (
@@ -77,6 +119,7 @@ export default function FeedScreen() {
         </View>
       ) : (
         <FlatList
+          ref={list}
           data={items}
           keyExtractor={(it) => (it.kind === 'show' ? it.show.id : 'coming-soon')}
           renderItem={render}
@@ -97,7 +140,7 @@ export default function FeedScreen() {
       )}
 
       {/* Top bar: what's live, where you are, search. */}
-      <View style={[styles.top, { top: insets.top + 6 }]} pointerEvents="box-none">
+      <Animated.View style={[styles.top, { top: insets.top + 6 }, topIn]} pointerEvents="box-none">
         {live ? (
           <Pressy
             accessibilityRole="button"
@@ -125,7 +168,7 @@ export default function FeedScreen() {
         >
           <Icon name="search" size={22} color={colors.text} />
         </Pressy>
-      </View>
+      </Animated.View>
     </View>
   );
 }
