@@ -18,7 +18,6 @@ import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useState } from 'react';
 import { Platform, View } from 'react-native';
 
-import { ArrivalLight } from '@/components/launch/ArrivalLight';
 import { LaunchIntro } from '@/components/launch/LaunchIntro';
 import { useLaunch } from '@/store/launch';
 
@@ -49,13 +48,11 @@ export default function RootLayout() {
   const [introReady, setIntroReady] = useState(false);
   const [introDone, setIntroDone] = useState(false);
   const onIntroReady = useCallback(() => setIntroReady(true), []);
-  const phase = useLaunch((s) => s.phase);
   const setPhase = useLaunch((s) => s.setPhase);
-  const onIntroDone = useCallback(() => {
-    setIntroDone(true);
-    setPhase('arriving');
-  }, [setPhase]);
-  const onArrived = useCallback(() => setPhase('done'), [setPhase]);
+  // The window opens onto the Feed (its entrance starts), clears the screen, then the sound ends.
+  const onIntroOpen = useCallback(() => setPhase('arriving'), [setPhase]);
+  const onIntroRevealed = useCallback(() => setPhase('done'), [setPhase]);
+  const onIntroDone = useCallback(() => setIntroDone(true), []);
 
   useEffect(() => {
     if ((fontsLoaded || fontError) && (introReady || introDone)) void SplashScreen.hideAsync();
@@ -98,8 +95,14 @@ export default function RootLayout() {
           />
         </Stack>
       </QueryClientProvider>
-      {phase !== 'done' ? <ArrivalLight go={phase === 'arriving'} onDone={onArrived} /> : null}
-      {introDone ? null : <LaunchIntro onReady={onIntroReady} onDone={onIntroDone} />}
+      {introDone ? null : (
+        <LaunchIntro
+          onReady={onIntroReady}
+          onOpen={onIntroOpen}
+          onRevealed={onIntroRevealed}
+          onFinished={onIntroDone}
+        />
+      )}
     </View>
   );
 }
