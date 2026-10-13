@@ -20,7 +20,7 @@ export function LaunchIntro({ onReady, onDone }: { onReady: () => void; onDone: 
   const finished = useRef(false);
   const player = useVideoPlayer(SOURCE, (p) => {
     p.loop = false;
-    // The projector stinger. Follows the ringer switch: silent mode keeps it quiet.
+    // The projector stinger. Mixes with any music already playing instead of stopping it.
     p.audioMixingMode = 'mixWithOthers';
     p.play();
   });
