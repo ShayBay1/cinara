@@ -172,21 +172,30 @@ function Lobby({ show, now }: { show: Show; now: Date }) {
           }
         />
         {premiere ? (
-          <T
-            style={{
-              fontFamily: fonts.bodyHeavy,
-              fontSize: 34,
-              color: colors.text,
-              fontVariant: ['tabular-nums'],
-            }}
-            accessibilityElementsHidden
-          >
-            {c.days
-              ? `${c.days}d ${c.h}h ${c.m}m`
+          <View style={styles.clock} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
+            {(c.days
+              ? [
+                  [String(c.days), c.days === 1 ? 'day' : 'days'],
+                  [c.h, 'hrs'],
+                  [c.m, 'min'],
+                ]
               : Number(c.h) > 0
-                ? `${c.h}:${c.m}:${c.s}`
-                : `${Number(c.m)}:${c.s}`}
-          </T>
+                ? [
+                    [c.h, 'hrs'],
+                    [c.m, 'min'],
+                    [c.s, 'sec'],
+                  ]
+                : [
+                    [c.m, 'min'],
+                    [c.s, 'sec'],
+                  ]
+            ).map(([n, unit]) => (
+              <View key={unit} style={styles.clockCell}>
+                <T style={styles.clockNum}>{n}</T>
+                <T style={styles.clockUnit}>{unit}</T>
+              </View>
+            ))}
+          </View>
         ) : null}
         <T
           style={{
@@ -214,7 +223,15 @@ function Lobby({ show, now }: { show: Show; now: Date }) {
           <T variant="eyebrow" style={{ color: colors.goldLight }}>
             {doors ? 'The cast is arriving' : 'In the chat at 8/7c'}
           </T>
-          <View style={{ flexDirection: 'row', gap: 14, flexWrap: 'wrap' }}>
+          <View
+            style={{
+              flexDirection: 'row',
+              flexWrap: 'wrap',
+              rowGap: 14,
+              columnGap: show.cast.length > 4 ? 14 : 0,
+              justifyContent: show.cast.length > 4 ? 'flex-start' : 'space-between',
+            }}
+          >
             {show.cast.map((m, i) => {
               const here = i < arrived;
               return (
@@ -239,9 +256,7 @@ function Lobby({ show, now }: { show: Show; now: Date }) {
                       },
                     ]}
                   >
-                    <T style={{ fontFamily: fonts.serif, fontSize: 22, color: colors.text }}>
-                      {m.role.charAt(0)}
-                    </T>
+                    <T style={styles.lobbyInitial}>{m.role.charAt(0)}</T>
                   </View>
                   <T
                     style={{ fontFamily: fonts.bodyBold, fontSize: 11, color: colors.text }}
@@ -1149,6 +1164,32 @@ function FloatingHeart({
 }
 
 const styles = StyleSheet.create({
+  clock: { flexDirection: 'row', justifyContent: 'center', gap: 18, marginTop: 2 },
+  clockCell: { alignItems: 'center', minWidth: 54 },
+  clockNum: {
+    fontFamily: fonts.bodyHeavy,
+    fontSize: 34,
+    lineHeight: 38,
+    color: colors.text,
+    fontVariant: ['tabular-nums'],
+    textAlign: 'center',
+  },
+  clockUnit: {
+    fontFamily: fonts.engraved,
+    fontSize: 9,
+    letterSpacing: 1.6,
+    color: colors.muted,
+    textTransform: 'uppercase',
+    marginTop: 2,
+  },
+  lobbyInitial: {
+    fontFamily: fonts.serif,
+    fontSize: 24,
+    lineHeight: 28,
+    color: colors.text,
+    textAlign: 'center',
+    includeFontPadding: false,
+  },
   lobbyFace: {
     width: 52,
     height: 52,

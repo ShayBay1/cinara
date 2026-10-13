@@ -235,7 +235,16 @@ export function Avatar({
           transition={150}
         />
       ) : (
-        <Text style={{ fontFamily: fonts.serif, color: colors.text, fontSize: size * 0.45 }}>
+        <Text
+          style={{
+            fontFamily: fonts.serif,
+            color: colors.text,
+            fontSize: size * 0.45,
+            lineHeight: Math.round(size * 0.54),
+            textAlign: 'center',
+            includeFontPadding: false,
+          }}
+        >
           {initial}
         </Text>
       )}
