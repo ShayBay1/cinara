@@ -1,399 +1,167 @@
-import { Image } from 'expo-image';
-import { useEffect } from 'react';
-import { router } from 'expo-router';
-import { Pressable, RefreshControl, ScrollView, StyleSheet, View } from 'react-native';
+import { router, useIsFocused } from 'expo-router';
+import { StatusBar } from 'expo-status-bar';
+import { useCallback, useMemo, useRef, useState } from 'react';
+import { FlatList, StyleSheet, Text, useWindowDimensions, View, type ViewToken } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
-import { Develop } from '@/components/Develop';
+import { ComingSoonCard, ShowCard } from '@/components/feed/FeedCard';
 import { Icon } from '@/components/Icon';
 import { Pressy } from '@/components/Pressy';
-import { HomeSky } from '@/components/launch/HomeSky';
-import { HomeTop } from '@/components/launch/HomeTop';
-import { GhostRow } from '@/components/Skeleton';
-import { Avatar, ErrorState, T } from '@/components/ui';
-import type { Friend, Show } from '@/data';
-import { coverSource } from '@/data/covers';
-import { useComingSoon, useFriends, useShows } from '@/hooks/queries';
+import { ErrorState } from '@/components/ui';
+import type { ComingSoon, Show } from '@/data';
+import { useComingSoon, useShows } from '@/hooks/queries';
 import { useNow } from '@/hooks/useNow';
-import { soonestPremiere } from '@/lib/premieres';
-import { dropOf } from '@/lib/schedule';
-import { playEpisode } from '@/lib/play';
-import { syncPremiereActivity, syncTonightWidget } from '@/lib/widgetSync';
+import { premiereFor, premiereStage } from '@/lib/premieres';
 import { useAppStore } from '@/store/useAppStore';
-import { colors, fonts, home, radius } from '@/theme/tokens';
+import { colors, fonts } from '@/theme/tokens';
 
-const openShow = (id: string) =>
-  router.push({ pathname: '/show/[showId]', params: { showId: id } });
+type Item = { kind: 'show'; show: Show } | { kind: 'soon'; soon: ComingSoon };
 
 /**
- * Home answers one question at a glance: what's on tonight, and how long until it starts?
- * The top (logo, search, the Tonight card, Now streaming) matches the launch animation's last
- * frame. Below it: where you left off, what friends are watching, tropes, and what's coming.
+ * Feed: the screen Snippets opens on. One show per screen, full height; swipe up for the next.
+ * Shows you're partway through come first, then the rest, with the next show to arrive slotted in.
  */
-export default function HomeScreen() {
+export default function FeedScreen() {
   const shows = useShows();
   const coming = useComingSoon();
   const now = useNow(1000);
+  const { height } = useWindowDimensions();
   const insets = useSafeAreaInsets();
-  const list = shows.data ?? [];
-  const premiere = soonestPremiere(list, now);
-  const featured = list.find((s) => s.featured);
-  const reminders = useAppStore((s) => s.reminders);
-  // Home-screen widget and Dynamic Island countdown (iPhone builds only). Re-synced each minute.
-  const minute = Math.floor(now.getTime() / 60_000);
-  useEffect(() => {
-    if (!list.length) return;
-    syncTonightWidget(list);
-    void syncPremiereActivity(list, Object.keys(reminders));
+  const focused = useIsFocused();
+  const progress = useAppStore((s) => s.progress);
+  const [active, setActive] = useState(0);
+
+  const items = useMemo<Item[]>(() => {
+    const list = [...(shows.data ?? [])].sort((a, b) => {
+      const pa = progress[a.id]?.updatedAt ?? 0;
+      const pb = progress[b.id]?.updatedAt ?? 0;
+      if (pa !== pb) return pb - pa;
+      if (a.featured !== b.featured) return a.featured ? -1 : 1;
+      return a.number.localeCompare(b.number);
+    });
+    const out: Item[] = list.map((show) => ({ kind: 'show', show }));
+    if (coming.data?.title) out.splice(Math.min(2, out.length), 0, { kind: 'soon', soon: coming.data });
+    return out;
+    // Order is fixed per visit: don't reshuffle under the viewer's thumb as progress saves.
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [list, reminders, minute]);
+  }, [shows.data, coming.data]);
+
+  const live = (shows.data ?? [])
+    .map((s) => premiereFor(s, now))
+    .find((p) => p && ['doors', 'live'].includes(premiereStage(p.at, now)));
+
+  const onViewable = useRef(({ viewableItems }: { viewableItems: ViewToken[] }) => {
+    const first = viewableItems[0];
+    if (first?.index != null) setActive(first.index);
+  }).current;
+
+  const render = useCallback(
+    ({ item, index }: { item: Item; index: number }) =>
+      item.kind === 'show' ? (
+        <ShowCard show={item.show} active={focused && index === active} now={now} height={height} />
+      ) : (
+        <ComingSoonCard soon={item.soon} active={focused && index === active} height={height} />
+      ),
+    [active, focused, height, now],
+  );
 
   return (
-    <ScrollView
-      style={{ flex: 1, backgroundColor: home.deep }}
-      contentContainerStyle={{ paddingBottom: insets.bottom + 120 }}
-      contentInsetAdjustmentBehavior="never"
-      refreshControl={
-        <RefreshControl
-          tintColor={home.gold}
-          refreshing={shows.isRefetching}
-          onRefresh={() => void shows.refetch()}
-        />
-      }
-    >
-      <HomeSky now={now} accent={(featured ?? premiere?.show)?.color} />
-      <HomeTop shows={list} premiere={premiere} featured={featured} now={now} />
-      <View style={{ paddingHorizontal: 16 }}>
-        {shows.isError ? (
+    <View style={{ flex: 1, backgroundColor: colors.ink }}>
+      <StatusBar style="light" />
+      {shows.isError ? (
+        <View style={{ flex: 1, justifyContent: 'center', padding: 24 }}>
           <ErrorState
             message="We couldn’t load the shows. Check your connection."
             onRetry={() => void shows.refetch()}
           />
-        ) : null}
-        {shows.isPending ? (
-          <>
-            <GhostRow width={176} height={99} />
-            <GhostRow width={150} height={40} />
-          </>
-        ) : null}
-        <ContinueWatching shows={list} />
-        <FriendsWatching shows={list} />
-        <Tropes shows={list} />
-        {coming.data ? (
-          <ComingSoonRow
-            title={coming.data.title ?? 'Next on Snippets'}
-            teaser={coming.data.teaser}
-            arrives={coming.data.arrives}
-          />
-        ) : null}
-      </View>
-    </ScrollView>
-  );
-}
-
-function Label({ children }: { children: string }) {
-  return <T style={styles.h2}>{children}</T>;
-}
-
-/** Everything you're partway through, most recent first, with a gold progress line. */
-function ContinueWatching({ shows }: { shows: Show[] }) {
-  const progress = useAppStore((s) => s.progress);
-  const items = Object.entries(progress)
-    .map(([id, p]) => ({ show: shows.find((s) => s.id === id), p }))
-    .filter(
-      (x): x is { show: Show; p: (typeof x)['p'] } =>
-        !!x.show && x.p.episode <= x.show.latestEpisode,
-    )
-    .sort((a, b) => (b.p.updatedAt ?? 0) - (a.p.updatedAt ?? 0));
-  if (!items.length) return null;
-  const fmt = (t: number) => `${Math.floor(t / 60)}:${String(Math.floor(t % 60)).padStart(2, '0')}`;
-
-  return (
-    <View style={styles.section}>
-      <Label>Continue watching</Label>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={{ marginHorizontal: -16 }}
-        contentContainerStyle={{ paddingHorizontal: 16, gap: 10 }}
-      >
-        {items.map(({ show, p }) => {
-          const dur = p.durationSec ?? 0;
-          const left = dur > 0 ? Math.max(0, dur - p.positionSec) : 0;
-          const frac = dur > 0 ? Math.min(1, p.positionSec / dur) : 0;
-          const title = show.episodeTitles[p.episode - 1];
-          const drop = dropOf(p.episode, show.episodeCount);
-          return (
-            <Pressy
-              key={show.id}
-              accessibilityRole="button"
-              accessibilityLabel={`Continue ${show.title}, episode ${p.episode}${left > 0 ? `, ${fmt(left)} left` : ''}`}
-              onPress={() => playEpisode(show.id, p.episode)}
-              style={{ width: 176, gap: 6 }}
-            >
-              <View style={[styles.thumb, { backgroundColor: show.color }]}>
-                {coverSource(show) ? (
-                  <Image
-                    source={coverSource(show)!}
-                    style={StyleSheet.absoluteFill}
-                    contentFit="cover"
-                  />
-                ) : null}
-                <View style={styles.thumbPlay}>
-                  <Icon name="play" size={14} color={colors.ink} filled />
-                </View>
-                <View style={styles.thumbTrack}>
-                  <View
-                    style={{ width: `${frac * 100}%`, height: 3, backgroundColor: colors.gold }}
-                  />
-                </View>
-              </View>
-              <T style={styles.kicker} numberOfLines={1}>
-                {show.title}
-              </T>
-              <T
-                style={styles.epLine}
-                numberOfLines={1}
-              >{`Ep ${p.episode}${title ? ` · ${title}` : ''}`}</T>
-              <T style={styles.meta}>
-                {left > 0
-                  ? `${fmt(left)} left · ${drop.to - p.episode} more this drop`
-                  : `Episode ${p.episode} of ${drop.to}`}
-              </T>
-            </Pressy>
-          );
-        })}
-      </ScrollView>
-    </View>
-  );
-}
-
-/** Friends' faces on what they're watching: the social layer as a reason to open the app. */
-function FriendsWatching({ shows }: { shows: Show[] }) {
-  const friends = useFriends();
-  const active = (friends.data ?? []).filter(
-    (f): f is Friend & { watching: NonNullable<Friend['watching']> } =>
-      !!f.watching && !f.watching.caughtUp,
-  );
-  if (!active.length) return null;
-  return (
-    <View style={styles.section}>
-      <Label>Your friends are watching</Label>
-      <View style={styles.card}>
-        {active.slice(0, 4).map((f, i) => {
-          const show = shows.find((s) => s.id === f.watching.showId);
-          if (!show) return null;
-          return (
-            <Pressy
-              key={f.id}
-              accessibilityRole="button"
-              accessibilityLabel={`${f.handle} is ${f.watching.watchingNow ? 'watching' : 'on'} ${show.title}, episode ${f.watching.episode}. Watch with them.`}
-              onPress={() => playEpisode(show.id, f.watching.episode)}
-              style={[styles.friendRow, i > 0 && styles.rule]}
-            >
-              <Avatar
-                handle={f.handle}
-                url={f.avatarUrl}
-                size={40}
-                online={f.watching.watchingNow}
-              />
-              <View style={{ flex: 1 }}>
-                <T style={{ fontFamily: fonts.bodyHeavy, fontSize: 14, color: colors.text }}>
-                  {f.handle}
-                </T>
-                <T
-                  style={[styles.meta, f.watching.watchingNow && { color: colors.friend }]}
-                  numberOfLines={1}
-                >
-                  {`${f.watching.watchingNow ? 'Watching now' : 'Watching'} · ${show.title} · Ep ${f.watching.episode}`}
-                </T>
-              </View>
-              <T style={{ fontFamily: fonts.bodyHeavy, fontSize: 12, color: colors.gold }}>
-                Watch with them
-              </T>
-            </Pressy>
-          );
-        })}
-      </View>
-    </View>
-  );
-}
-
-/** Tropes are how vertical-drama fans browse: one tap searches for the trope. */
-function Tropes({ shows }: { shows: Show[] }) {
-  const tropes = [...new Set(shows.map((s) => s.genre).filter(Boolean))];
-  if (!tropes.length) return null;
-  return (
-    <View style={styles.section}>
-      <Label>Browse by trope</Label>
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={{ marginHorizontal: -16 }}
-        contentContainerStyle={{ paddingHorizontal: 16, gap: 8 }}
-      >
-        {tropes.map((t) => (
-          <Pressy
-            key={t}
-            accessibilityRole="button"
-            accessibilityLabel={`Shows with the trope ${t}`}
-            onPress={() => router.push({ pathname: '/search', params: { q: t } })}
-            style={styles.chip}
-          >
-            <T style={{ fontFamily: fonts.bodyBold, fontSize: 13, color: colors.text }}>{t}</T>
-          </Pressy>
-        ))}
-      </ScrollView>
-    </View>
-  );
-}
-
-/** What's next on Snippets: in sepia until it arrives. */
-function ComingSoonRow({
-  title,
-  teaser,
-  arrives,
-}: {
-  title: string;
-  teaser: string;
-  arrives: string;
-}) {
-  const notify = useAppStore((s) => s.notifyComingSoon);
-  const setNotify = useAppStore((s) => s.setNotifyComingSoon);
-  return (
-    <View style={styles.section}>
-      <Label>Coming soon</Label>
-      <View
-        style={[styles.card, { flexDirection: 'row', alignItems: 'center', gap: 12, padding: 12 }]}
-      >
-        <Develop developed={false} style={styles.soonArt}>
-          <View
-            style={[
-              StyleSheet.absoluteFill,
-              { backgroundColor: colors.wine, alignItems: 'center', justifyContent: 'center' },
-            ]}
-          >
-            <Icon name="reel" size={30} color={colors.goldLight} />
-          </View>
-        </Develop>
-        <View style={{ flex: 1, gap: 3 }}>
-          <T style={{ fontFamily: fonts.engraved, fontSize: 14, color: colors.goldLight }}>
-            {title}
-          </T>
-          <T
-            style={{
-              fontFamily: fonts.serifItalic,
-              fontSize: 14,
-              lineHeight: 18,
-              color: colors.textSoft,
-            }}
-            numberOfLines={2}
-          >
-            {teaser}
-          </T>
-          <T style={styles.meta}>{arrives}</T>
         </View>
-        <Pressable
+      ) : (
+        <FlatList
+          data={items}
+          keyExtractor={(it) => (it.kind === 'show' ? it.show.id : 'coming-soon')}
+          renderItem={render}
+          pagingEnabled
+          snapToInterval={height}
+          decelerationRate="fast"
+          disableIntervalMomentum
+          showsVerticalScrollIndicator={false}
+          getItemLayout={(_, i) => ({ length: height, offset: height * i, index: i })}
+          onViewableItemsChanged={onViewable}
+          viewabilityConfig={{ itemVisiblePercentThreshold: 60 }}
+          windowSize={3}
+          initialNumToRender={2}
+          maxToRenderPerBatch={2}
+          contentInsetAdjustmentBehavior="never"
+          bounces={false}
+        />
+      )}
+
+      {/* Top bar: what's live, where you are, search. */}
+      <View style={[styles.top, { top: insets.top + 6 }]} pointerEvents="box-none">
+        {live ? (
+          <Pressy
+            accessibilityRole="button"
+            accessibilityLabel={`${live.show.title} is live. Join the premiere`}
+            onPress={() => router.push({ pathname: '/live/[showId]', params: { showId: live.show.id } })}
+            style={styles.livePill}
+            feel="tap"
+          >
+            <View style={styles.liveDot} />
+            <Text style={styles.liveText}>LIVE</Text>
+          </Pressy>
+        ) : (
+          <View style={styles.leftSlot} />
+        )}
+        <View style={styles.tabLabel}>
+          <Text style={styles.forYou}>For You</Text>
+          <View style={styles.underline} />
+        </View>
+        <Pressy
           accessibilityRole="button"
-          accessibilityLabel={
-            notify
-              ? `We'll tell you when ${title} arrives. Tap to turn off.`
-              : `Tell me when ${title} arrives`
-          }
-          accessibilityState={{ selected: notify }}
-          onPress={() => setNotify(!notify)}
-          style={[
-            styles.notify,
-            notify && { borderColor: colors.gold, backgroundColor: 'rgba(255,184,0,0.12)' },
-          ]}
+          accessibilityLabel="Search"
+          onPress={() => router.push('/search')}
+          style={styles.search}
+          scaleTo={0.9}
         >
-          <Icon
-            name={notify ? 'check' : 'bell'}
-            size={18}
-            color={notify ? colors.gold : colors.text}
-          />
-        </Pressable>
+          <Icon name="search" size={22} color={colors.text} />
+        </Pressy>
       </View>
     </View>
   );
 }
 
 const styles = StyleSheet.create({
-  section: { paddingTop: 26 },
-  h2: {
-    fontFamily: fonts.engraved,
-    fontSize: 12,
-    letterSpacing: 2.6,
-    textTransform: 'uppercase',
-    color: colors.text,
-    marginBottom: 10,
-  },
-  meta: { fontFamily: fonts.bodyBold, fontSize: 12, color: colors.muted },
-  kicker: {
-    fontFamily: fonts.engraved,
-    fontSize: 11,
-    letterSpacing: 1.2,
-    textTransform: 'uppercase',
-    color: colors.goldLight,
-  },
-  epLine: { fontFamily: fonts.bodyHeavy, fontSize: 14, color: colors.text },
-  card: {
-    borderRadius: radius.md,
-    backgroundColor: colors.surface,
-    borderWidth: 1,
-    borderColor: colors.line,
-    paddingHorizontal: 12,
-  },
-  rule: { borderTopWidth: StyleSheet.hairlineWidth, borderTopColor: colors.line },
-  friendRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 12,
-    paddingVertical: 12,
-    minHeight: 64,
-  },
-  thumb: {
-    width: 176,
-    height: 99,
-    borderRadius: 10,
-    overflow: 'hidden',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  thumbPlay: {
-    width: 32,
-    height: 32,
-    borderRadius: 16,
-    backgroundColor: 'rgba(243,234,216,0.9)',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  thumbTrack: {
+  top: {
     position: 'absolute',
     left: 0,
     right: 0,
-    bottom: 0,
-    height: 3,
-    backgroundColor: 'rgba(243,234,216,0.25)',
-  },
-  chip: {
-    height: 40,
-    paddingHorizontal: 16,
-    borderRadius: radius.pill,
-    borderWidth: 1,
-    borderColor: colors.line,
-    backgroundColor: colors.surface,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  soonArt: { width: 56, height: 76, borderRadius: 8 },
-  notify: {
-    width: 44,
     height: 44,
-    borderRadius: 22,
-    borderWidth: 1,
-    borderColor: colors.line,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+  },
+  leftSlot: { width: 64 },
+  livePill: {
+    width: 64,
+    height: 26,
+    borderRadius: 7,
+    backgroundColor: colors.live,
+    flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
+    gap: 6,
   },
+  liveDot: { width: 6, height: 6, borderRadius: 3, backgroundColor: '#fff' },
+  liveText: { fontFamily: fonts.bodyHeavy, fontSize: 11, letterSpacing: 1.4, color: '#fff' },
+  tabLabel: { alignItems: 'center' },
+  forYou: {
+    fontFamily: fonts.bodyHeavy,
+    fontSize: 16,
+    color: colors.text,
+    textShadowColor: 'rgba(0,0,0,0.5)',
+    textShadowRadius: 6,
+  },
+  underline: { width: 28, height: 2, borderRadius: 1, backgroundColor: colors.gold, marginTop: 5 },
+  search: { width: 64, alignItems: 'flex-end', justifyContent: 'center', height: 44 },
 });

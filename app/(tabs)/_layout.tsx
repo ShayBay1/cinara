@@ -1,4 +1,5 @@
 import { router, Tabs } from 'expo-router';
+import { useEffect } from 'react';
 import { Platform, StyleSheet, View, type ColorValue } from 'react-native';
 
 import { Icon, type IconName } from '@/components/Icon';
@@ -7,7 +8,9 @@ import { Avatar } from '@/components/ui';
 import { useMe, useShows } from '@/hooks/queries';
 import { useAppStore } from '@/store/useAppStore';
 import { haptic } from '@/lib/haptics';
+import { useNow } from '@/hooks/useNow';
 import { soonestPremiere } from '@/lib/premieres';
+import { syncPremiereActivity, syncTonightWidget } from '@/lib/widgetSync';
 import { colors, fonts } from '@/theme/tokens';
 
 /** The Profile tab is just your picture (like Instagram): no icon, no label, a thin ring when you're on it. */
@@ -40,6 +43,16 @@ const tab = (title: string, icon: IconName) => ({
 
 export default function TabsLayout() {
   const shows = useShows();
+  const reminders = useAppStore((s) => s.reminders);
+  // Home-screen widget and Dynamic Island countdown (iPhone builds only). Re-synced each minute,
+  // whichever tab is open.
+  const minute = Math.floor(useNow(60_000).getTime() / 60_000);
+  useEffect(() => {
+    const list = shows.data ?? [];
+    if (!list.length) return;
+    syncTonightWidget(list);
+    void syncPremiereActivity(list, Object.keys(reminders));
+  }, [shows.data, reminders, minute]);
   return (
     <Tabs
       screenListeners={{ tabPress: () => haptic.pick() }}
@@ -69,12 +82,13 @@ export default function TabsLayout() {
         sceneStyle: { backgroundColor: colors.ink },
       }}
     >
-      <Tabs.Screen name="index" options={tab('Home', 'home')} />
-      <Tabs.Screen name="schedule" options={tab('Schedule', 'schedule')} />
+      {/* Feed is first and is where the app opens (TikTok-style). Home is the browse page. */}
+      <Tabs.Screen name="index" options={tab('Feed', 'play')} />
+      <Tabs.Screen name="home" options={tab('Home', 'home')} />
       {/* Live opens the next premiere's room straight away (it's a full-screen player, not a tab page). */}
       <Tabs.Screen
         name="live"
-        options={tab('Tonight', 'reel')}
+        options={tab('Live', 'live')}
         listeners={{
           tabPress: (e) => {
             const next = soonestPremiere(shows.data ?? [], new Date());
@@ -84,6 +98,7 @@ export default function TabsLayout() {
           },
         }}
       />
+      <Tabs.Screen name="friends" options={tab('Friends', 'friends')} />
       <Tabs.Screen
         name="profile"
         options={{
@@ -94,8 +109,8 @@ export default function TabsLayout() {
           tabBarIcon: ({ focused }) => <ProfileTabIcon focused={focused} />,
         }}
       />
-      {/* Friends lives under Profile now. */}
-      <Tabs.Screen name="friends" options={{ href: null }} />
+      {/* The premiere calendar opens from Home now. */}
+      <Tabs.Screen name="schedule" options={{ href: null }} />
     </Tabs>
   );
 }
