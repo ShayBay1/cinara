@@ -68,7 +68,7 @@ const config: ExpoConfig = {
     'expo-video',
     [
       'expo-splash-screen',
-      { backgroundColor: '#08080A', image: './assets/splash-icon.png', imageWidth: 160 },
+      { backgroundColor: '#08080A', image: './assets/splash-icon.png', imageWidth: 132 },
     ],
     [
       'expo-image-picker',

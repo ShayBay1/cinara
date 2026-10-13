@@ -42,7 +42,8 @@ export default function RootLayout() {
     Manrope_800ExtraBold,
   });
 
-  // The launch animation plays once per cold start; the native splash stays up until its first frame is ready.
+  // The opening (the reel's window opens onto the Feed) plays on every cold start; the native splash
+  // shows the same reel, and stays up until the opening's first frame is ready.
   const [introReady, setIntroReady] = useState(false);
   const [introDone, setIntroDone] = useState(false);
   const onIntroReady = useCallback(() => setIntroReady(true), []);
