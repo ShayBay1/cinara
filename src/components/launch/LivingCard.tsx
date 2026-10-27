@@ -1,6 +1,9 @@
-import MaskedView from '@react-native-masked-view/masked-view';
-import type { ReactNode } from 'react';
-import { StyleSheet, View, type StyleProp, type ViewStyle } from 'react-native';
+import MaskedViewBase from '@react-native-masked-view/masked-view';
+import type { ComponentType, ReactElement, ReactNode } from 'react';
+import { StyleSheet, View, type StyleProp, type ViewProps, type ViewStyle } from 'react-native';
+
+// The library's class typings predate React 19's JSX types; same component, typed for JSX.
+const MaskedView = MaskedViewBase as unknown as ComponentType<ViewProps & { maskElement: ReactElement }>;
 import Animated, { interpolate, useAnimatedStyle } from 'react-native-reanimated';
 
 import { useTilt } from '@/hooks/useTilt';

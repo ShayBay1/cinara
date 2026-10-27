@@ -13,10 +13,11 @@ import { Reel } from '@/components/Reel';
 import { Screen } from '@/components/Screen';
 import { Avatar, Button, T } from '@/components/ui';
 import { coverSource } from '@/data/covers';
-import { api, type Show } from '@/data';
-import { useMe, useMembership, useShows, useUploadAvatar } from '@/hooks/queries';
+import { type ActorEarnings, api, type Show } from '@/data';
+import { useEarnings, useMe, useMembership, useShows, useUploadAvatar } from '@/hooks/queries';
 import { canSellHere, MEMBERSHIP_PRICE_LABEL, showExternalJoinLink, WEB_URL } from '@/lib/billing';
 import { easternParts } from '@/lib/schedule';
+import { money, shortDate, statementTotals } from '@/lib/share';
 import { useAppStore, type TicketStub } from '@/store/useAppStore';
 import { colors, fonts, radius } from '@/theme/tokens';
 
@@ -25,6 +26,7 @@ const MAX_UPLOAD_BYTES = 15 * 1024 * 1024;
 export default function ProfileScreen() {
   const me = useMe();
   const membership = useMembership();
+  const earnings = useEarnings();
   const shows = useShows();
   const upload = useUploadAvatar();
   const myList = useAppStore((s) => s.myList);
@@ -125,7 +127,15 @@ export default function ProfileScreen() {
               onPress={pickPhoto}
             />
             {avatarUrl ? (
-              <Button compact kind="outline" label="Remove" onPress={() => setAvatarUrl(null)} />
+              <Button
+                compact
+                kind="outline"
+                label="Remove"
+                onPress={() => {
+                  setAvatarUrl(null);
+                  void api.removeAvatar().then(() => me.refetch()).catch(() => undefined);
+                }}
+              />
             ) : null}
           </View>
         </View>
@@ -136,7 +146,7 @@ export default function ProfileScreen() {
         {isMember ? (
           <>
             <T style={styles.memberLine}>Your membership pays the cast of every show you watch.</T>
-            <T variant="caption">Billed monthly on the Snippets website. Cancel anytime there.</T>
+            <T variant="caption">Billed monthly on the Cinara website. Cancel anytime there.</T>
             {canSellHere || showExternalJoinLink ? (
               <Button
                 compact
@@ -165,6 +175,8 @@ export default function ProfileScreen() {
           </>
         )}
       </View>
+
+      {earnings.data ? <ShareCard earnings={earnings.data} /> : null}
 
       <View style={styles.section}>
         <View style={styles.headRow}>
@@ -307,6 +319,30 @@ function Stub({ stub, show }: { stub: TicketStub; show?: Show }) {
   );
 }
 
+/** For cast members: this quarter's Cinara Share so far, opening the full statement. */
+function ShareCard({ earnings }: { earnings: ActorEarnings }) {
+  const t = statementTotals(earnings.current);
+  return (
+    <Pressy
+      accessibilityRole="button"
+      accessibilityLabel={`Your Cinara Share. ${money(t.totalCents)} so far this quarter. Open your statements.`}
+      onPress={() => router.push('/earnings')}
+      style={styles.shareCard}
+    >
+      <View style={{ flex: 1, gap: 4 }}>
+        <T variant="eyebrow">Your Cinara Share</T>
+        <T style={styles.shareAmount}>{money(t.totalCents)}</T>
+        <T variant="caption" style={{ fontSize: 13 }}>
+          {`So far in ${t.quarter.label} · paid by ${shortDate(t.quarter.payBy)}`}
+        </T>
+      </View>
+      <View style={{ transform: [{ rotate: '180deg' }] }}>
+        <Icon name="back" size={18} color={colors.gold} />
+      </View>
+    </Pressy>
+  );
+}
+
 function say(title: string, message: string) {
   if (Platform.OS === 'web') globalThis.alert?.(`${title}\n\n${message}`);
   else Alert.alert(title, message);
@@ -347,6 +383,18 @@ const styles = StyleSheet.create({
     borderColor: colors.gold,
     experimental_backgroundImage: 'linear-gradient(135deg, #3A2A0E 0%, #1E1710 65%)',
   },
+  shareCard: {
+    marginTop: 14,
+    padding: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    borderRadius: radius.md,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.surface,
+  },
+  shareAmount: { fontFamily: fonts.serifItalic, fontSize: 34, lineHeight: 40, color: colors.gold },
   memberLine: { fontFamily: fonts.serifItalic, fontSize: 19, lineHeight: 24, color: colors.text },
   section: { paddingTop: 28 },
   headRow: {

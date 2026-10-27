@@ -1,4 +1,6 @@
-import type { ComingSoon, Comment, Friend, FriendRequest, Gift, Show } from './types';
+import { previousQuarter, quarterOf } from '@/lib/share';
+
+import type { ActorEarnings, ComingSoon, Comment, Friend, FriendRequest, Gift, Show } from './types';
 
 /**
  * Sample content used when no backend is configured. Titles, people and
@@ -128,7 +130,7 @@ export const FRIEND_REQUESTS: FriendRequest[] = [
 export function sampleComments(showId: string, episode: number): Comment[] {
   const at = (minutesAgo: number) => new Date(Date.now() - minutesAgo * 60_000).toISOString();
   return [
-    { id: `${showId}-${episode}-c1`, showId, episode, author: { id: 'cast-1', handle: '[Actor name]', isCast: true }, body: 'We did fourteen takes of this scene. Fourteen.', atSec: 42, likes: 412, likedByMe: false, isFriend: false, createdAt: at(120) },
+    { id: `${showId}-${episode}-c1`, showId, episode, author: { id: 'cast-1', handle: 'marcus.onset', isCast: true }, body: 'We did fourteen takes of this scene. Fourteen.', atSec: 42, likes: 412, likedByMe: false, isFriend: false, createdAt: at(120) },
     { id: `${showId}-${episode}-c2`, showId, episode, author: { id: 'u-kayla', handle: 'kayla.watches' }, body: 'He is SO broke and I am SO in love.', likes: 96, likedByMe: false, isFriend: true, createdAt: at(60) },
     { id: `${showId}-${episode}-c3`, showId, episode, author: { id: 'u-jdub', handle: 'jdub_310' }, body: 'Called it three episodes ago. Nobody listened.', atSec: 70, likes: 58, likedByMe: false, isFriend: false, createdAt: at(180) },
     { id: `${showId}-${episode}-c4`, showId, episode, author: { id: 'u-mari', handle: 'mariposa.reads' }, body: 'The delivery on that last line, like a court verdict.', likes: 31, likedByMe: false, isFriend: false, createdAt: at(240) },
@@ -144,3 +146,49 @@ export const SAMPLE_CHAT_LINES: { handle: string; body: string; isCast?: boolean
   { handle: 'marco_vb', body: 'the music right now' },
   { handle: 'kayla.watches', body: 'screaming' },
 ];
+
+/**
+ * A sample actor's Cinara Share: you play Marcus on His Secret Fortune (6 of 20 points) and Cole on
+ * The Alpha Next Door (4 of 18). His Secret Fortune earns back its budget this quarter, so its pool
+ * steps up from 40% to 60% partway through. Placeholder numbers until real shows run.
+ */
+export function sampleEarnings(now: Date): ActorEarnings {
+  const q = quarterOf(now);
+  const q1 = previousQuarter(q);
+  const q2 = previousQuarter(q1);
+  const hsf = { showId: 'his-secret-fortune', showTitle: 'His Secret Fortune', role: 'Marcus', points: 6, totalPoints: 20, budgetCents: 60_000_00 };
+  const alpha = { showId: 'the-alpha-next-door', showTitle: 'The Alpha Next Door', role: 'Cole', points: 4, totalPoints: 18, budgetCents: 45_000_00 };
+  return {
+    current: {
+      quarter: q.key,
+      status: 'open',
+      shows: [
+        { ...hsf, minutesWatched: 412_300, members: 3_180, revenueCents: 14_500_00, earnedBeforeCents: 52_000_00 },
+        { ...alpha, minutesWatched: 168_900, members: 1_240, revenueCents: 6_200_00, earnedBeforeCents: 12_000_00 },
+      ],
+      gifts: { count: 37, grossCents: 142_63, cardFeesCents: 4_28 },
+    },
+    past: [
+      {
+        quarter: q1.key,
+        status: 'paid',
+        paidOn: new Date(q.start.getTime() + 11 * 86_400_000).toISOString(),
+        shows: [
+          { ...hsf, minutesWatched: 1_208_400, members: 6_920, revenueCents: 31_000_00, earnedBeforeCents: 21_000_00 },
+          { ...alpha, minutesWatched: 402_700, members: 2_610, revenueCents: 9_800_00, earnedBeforeCents: 2_200_00 },
+        ],
+        gifts: { count: 112, grossCents: 418_88, cardFeesCents: 12_57 },
+      },
+      {
+        quarter: q2.key,
+        status: 'paid',
+        paidOn: new Date(q1.start.getTime() + 13 * 86_400_000).toISOString(),
+        shows: [
+          { ...hsf, minutesWatched: 801_500, members: 4_350, revenueCents: 21_000_00, earnedBeforeCents: 0 },
+          { ...alpha, minutesWatched: 61_900, members: 540, revenueCents: 2_200_00, earnedBeforeCents: 0 },
+        ],
+        gifts: { count: 64, grossCents: 233_36, cardFeesCents: 7_00 },
+      },
+    ],
+  };
+}

@@ -116,7 +116,7 @@ export const useAppStore = create<AppState>()(
       bumpFeedHint: () => set((s) => ({ feedHintsSeen: s.feedHintsSeen + 1 })),
     }),
     {
-      name: 'snippets-app',
+      name: 'cinara-app',
       version: 1,
       storage: createJSONStorage(() => AsyncStorage),
     },

@@ -210,6 +210,13 @@ export function viewerSize(w: number, h: number, orientation: Orientation): { wi
   return orientation === 0 ? { width: w, height: h } : { width: h, height: w };
 }
 
+function room(q: number, d: number, half: number): number {
+  'worklet';
+  if (d > 0) return (half - q) / d;
+  if (d < 0) return (-half - q) / d;
+  return 1;
+}
+
 /**
  * How far a reframe pan may go at this angle without uncovering the screen, as a factor 0..1 of the
  * requested pan. pan is in points, in the picture's own frame (x right, y down as the viewer sees it).
@@ -240,13 +247,6 @@ export function panRoom(w: number, h: number, angleDeg: number, side: number, pa
     f = Math.min(f, room(qx, -panX, half), room(qy, -panY, half));
   }
   return clamp(f, 0, 1);
-}
-
-function room(q: number, d: number, half: number): number {
-  'worklet';
-  if (d > 0) return (half - q) / d;
-  if (d < 0) return (-half - q) / d;
-  return 1;
 }
 
 /** One shot's framing. x, y: crop center offset as a share of the picture's side (-0.5..0.5). z: push-in, 1 = none. */

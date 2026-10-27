@@ -1,4 +1,4 @@
--- Snippets database schema for Supabase (Postgres).
+-- Cinara database schema for Supabase (Postgres).
 -- Run in the Supabase SQL editor, or save as a migration with the Supabase CLI.
 -- Every table has row-level security: the app's public key can only do what
 -- these policies allow. Payments and moderation run in server functions that
@@ -362,3 +362,5 @@ create policy "read avatars" on storage.objects for select using (bucket_id = 'a
 --   alter table public.shows add column if not exists featured boolean not null default false;
 --   alter table public.friend_requests add column if not exists status text not null default 'pending';
 -- ---------------------------------------------------------------------------
+
+-- The Cinara Share (viewership, revenue ledger, actor pay) lives in share.sql; tests in share_test.sql.

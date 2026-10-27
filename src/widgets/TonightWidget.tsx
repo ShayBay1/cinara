@@ -42,7 +42,8 @@ const TonightWidget = (props: TonightWidgetProps, env: WidgetEnvironment) => {
     endPoint: { x: 0.6, y: 1 },
   };
 
-  const now = env.date.getTime();
+  const date = env.date ?? new Date();
+  const now = date.getTime();
   const left = props.at - now;
   const stage = !props.title
     ? 'none'
@@ -67,7 +68,7 @@ const TonightWidget = (props: TonightWidgetProps, env: WidgetEnvironment) => {
   const range = { lower: new Date(props.at - 24 * 60 * 60 * 1000), upper: start };
   const clock = within24h ? (
     <Text
-      timerInterval={{ lower: env.date, upper: start }}
+      timerInterval={{ lower: date, upper: start }}
       countsDown
       modifiers={[
         font({ size: 22, weight: 'bold', design: 'rounded' }),
@@ -105,7 +106,7 @@ const TonightWidget = (props: TonightWidgetProps, env: WidgetEnvironment) => {
         </Text>
         {within24h ? (
           <Text
-            timerInterval={{ lower: env.date, upper: start }}
+            timerInterval={{ lower: date, upper: start }}
             countsDown
             modifiers={[monospacedDigit()]}
           />

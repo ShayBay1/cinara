@@ -30,12 +30,12 @@ const RING_C = 2 * Math.PI * RING_R;
 
 /** Timeline, in ms. */
 const T_RING = 900; // outer ring draws on while the wheel turns
-const T_NAME = 450; // "Snippets." fades up (starts with the ring)
+const T_NAME = 450; // "Cinara." fades up (starts with the ring)
 const T_HOLD = 1050; // when the window starts to open
 const T_OPEN = 850; // window grows past the screen edges
 
 /**
- * The opening: the Snippets reel turns on black, its ring draws on, the name appears, then the
+ * The opening: the Cinara reel turns on black, its ring draws on, the name appears, then the
  * reel's centre window opens up and becomes the screen, revealing the Feed (already loaded and
  * playing underneath). About 2.3 seconds. Tap anywhere to skip.
  */
@@ -173,7 +173,7 @@ export function DrawnIntro({ onReady, onDone }: { onReady: () => void; onDone: (
           pointerEvents="none"
           style={[styles.nameWrap, { top: cy + REEL / 2 + 22 }, nameStyle]}
         >
-          <Text style={styles.name}>Snippets.</Text>
+          <Text style={styles.name}>Cinara.</Text>
         </Animated.View>
       </Pressable>
     </Animated.View>

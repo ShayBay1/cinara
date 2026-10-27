@@ -1,4 +1,4 @@
--- Snippets starter content. Run AFTER schema.sql, in the Supabase SQL editor.
+-- Cinara starter content. Run AFTER schema.sql, in the Supabase SQL editor.
 -- Safe to re-run: it updates rows that already exist.
 
 insert into public.shows (id, number, title, genre, tagline, synopsis, color, episode_count, latest_episode, release_days, "cast", episode_titles, published)

@@ -9,7 +9,7 @@ import {
   Manrope_700Bold,
   Manrope_800ExtraBold,
 } from '@expo-google-fonts/manrope';
-import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
+import { QueryCache, QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { useFonts } from 'expo-font';
 import * as Notifications from 'expo-notifications';
 import { router, Stack } from 'expo-router';
@@ -18,10 +18,13 @@ import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useState } from 'react';
 import { Platform, View } from 'react-native';
 
+import { ConnectionBanner, useConnection } from '@/components/ConnectionBanner';
 import { LaunchIntro } from '@/components/launch/LaunchIntro';
 import { useLaunch } from '@/store/launch';
 
+import { useMe } from '@/hooks/queries';
 import { lockUpright } from '@/lib/orientationLock';
+import { pullProgress, startProgressSync } from '@/lib/sync';
 import { colors } from '@/theme/tokens';
 
 void SplashScreen.preventAutoHideAsync();
@@ -31,7 +34,20 @@ export { ErrorBoundary } from 'expo-router';
 
 export default function RootLayout() {
   const [queryClient] = useState(
-    () => new QueryClient({ defaultOptions: { queries: { retry: 1, staleTime: 15_000 } } }),
+    () =>
+      new QueryClient({
+        defaultOptions: { queries: { retry: 1, staleTime: 15_000 } },
+        queryCache: new QueryCache({
+          // Network-looking failures show the app-wide banner; any success clears it.
+          onError: (e) => {
+            if (/network|fetch|timed? ?out|offline|failed to fetch/i.test(e instanceof Error ? e.message : String(e)))
+              useConnection.getState().setDown(true);
+          },
+          onSuccess: () => {
+            if (useConnection.getState().down) useConnection.getState().setDown(false);
+          },
+        }),
+      }),
   );
   const [fontsLoaded, fontError] = useFonts({
     Anton_400Regular,
@@ -46,7 +62,10 @@ export default function RootLayout() {
   // The opening (the reel's window opens onto the Feed) plays on every cold start; the native splash
   // shows the same reel, and stays up until the opening's first frame is ready.
   const [introReady, setIntroReady] = useState(false);
-  const [introDone, setIntroDone] = useState(false);
+  // The admin pages (web, /admin) skip the opening.
+  const [introDone, setIntroDone] = useState(
+    () => Platform.OS === 'web' && typeof window !== 'undefined' && window.location.pathname.startsWith('/admin'),
+  );
   const onIntroReady = useCallback(() => setIntroReady(true), []);
   const setPhase = useLaunch((s) => s.setPhase);
   // The window opens onto the Feed (its entrance starts), clears the screen, then the sound ends.
@@ -65,6 +84,7 @@ export default function RootLayout() {
   return (
     <View style={{ flex: 1, backgroundColor: colors.ink }}>
       <QueryClientProvider client={queryClient}>
+        <AccountSync />
         <StatusBar style="light" />
         <Stack
           screenOptions={{
@@ -89,11 +109,14 @@ export default function RootLayout() {
           <Stack.Screen name="search" options={{ animation: 'fade' }} />
           <Stack.Screen name="cast/[showId]/[index]" options={{ animation: 'slide_from_right' }} />
           <Stack.Screen name="settings" options={{ animation: 'slide_from_right' }} />
+          <Stack.Screen name="earnings" options={{ animation: 'slide_from_right' }} />
+          <Stack.Screen name="admin" />
           <Stack.Screen
             name="resume/[showId]/[episode]"
             options={{ presentation: 'transparentModal', animation: 'fade' }}
           />
         </Stack>
+        <ConnectionBanner />
       </QueryClientProvider>
       {introDone ? null : (
         <LaunchIntro
@@ -107,13 +130,27 @@ export default function RootLayout() {
   );
 }
 
+/** Starts progress sync and pulls the account's progress whenever someone signs in. */
+function AccountSync() {
+  const me = useMe();
+  useEffect(() => {
+    startProgressSync();
+  }, []);
+  useEffect(() => {
+    if (me.data?.id) void pullProgress();
+  }, [me.data?.id]);
+  return null;
+}
+
 /** Opens the live premiere when someone taps a premiere reminder. */
 function useNotificationDeepLinks() {
   useEffect(() => {
     if (Platform.OS === 'web') return;
     const open = (response: Notifications.NotificationResponse | null) => {
-      const url = response?.notification.request.content.data?.url;
-      if (typeof url === 'string' && url.startsWith('/')) router.push(url as never);
+      const raw = response?.notification.request.content.data?.url;
+      // Server pushes may send cinara://live/... ; local reminders send /live/...
+      const url = typeof raw === 'string' ? raw.replace(/^cinara:\/\//, '/') : null;
+      if (url && url.startsWith('/')) router.push(url as never);
     };
     const last = Notifications.getLastNotificationResponse();
     open(last);

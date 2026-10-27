@@ -1,4 +1,4 @@
-/** Design tokens from the Snippets mock-up. Every screen reads colors and fonts from here. */
+/** Design tokens from the Cinara mock-up. Every screen reads colors and fonts from here. */
 /**
  * "Darkroom": one palette for every screen. Things that aren't yours yet sit in sepia; gold leaf is
  * the one main action on a screen; parchment is for reading; one red, only for live.

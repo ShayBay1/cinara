@@ -72,7 +72,7 @@ export default function HomeScreen() {
           <Tropes shows={list} />
           {coming.data ? (
             <ComingSoonRow
-              title={coming.data.title ?? 'Next on Snippets'}
+              title={coming.data.title ?? 'Next on Cinara'}
               teaser={coming.data.teaser}
               arrives={coming.data.arrives}
             />
@@ -241,7 +241,7 @@ function Tropes({ shows }: { shows: Show[] }) {
   );
 }
 
-/** What's next on Snippets: in sepia until it arrives. */
+/** What's next on Cinara: in sepia until it arrives. */
 function ComingSoonRow({
   title,
   teaser,

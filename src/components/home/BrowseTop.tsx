@@ -25,7 +25,7 @@ export function BrowseHeader() {
     <View style={[styles.header, { paddingTop: insets.top + 4 }]} pointerEvents="box-none">
       <Fade stops={[[0, 0.75], [1, 0]]} color={colors.ink} />
       <View style={styles.headRow}>
-        <Text style={styles.logo}>Snippets.</Text>
+        <Text style={styles.logo}>Cinara.</Text>
         <Pressy accessibilityRole="button" accessibilityLabel="Search" onPress={() => router.push('/search')} scaleTo={0.9}>
           <Icon name="search" size={22} color={colors.text} />
         </Pressy>
@@ -164,7 +164,7 @@ export function TopRow({ shows }: { shows: Show[] }) {
   if (!shows.length) return null;
   const ranked = [...shows].sort((a, b) => a.number.localeCompare(b.number)).slice(0, 10);
   return (
-    <Row label="Top on Snippets">
+    <Row label="Top on Cinara">
       {ranked.map((s, i) => (
         <View key={s.id} style={styles.topItem}>
           <Text style={styles.topNum}>{i + 1}</Text>

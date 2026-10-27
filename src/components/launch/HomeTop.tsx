@@ -67,7 +67,7 @@ export function HomeTop({
             height: logo.size,
           }}
           contentFit="contain"
-          accessibilityLabel="Snippets"
+          accessibilityLabel="Cinara"
         />
         <Pressy
           accessibilityRole="search"

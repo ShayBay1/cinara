@@ -1,5 +1,6 @@
 import { Image } from 'expo-image';
 import { router, useLocalSearchParams } from 'expo-router';
+import { useEffect } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -36,6 +37,17 @@ export default function ResumeSheet() {
       params: { showId: showId ?? '', episode: String(n) },
     });
   };
+
+  // Nothing worth resuming (under 5 seconds in): skip the question and just play.
+  const barelyStarted = at < 5;
+  useEffect(() => {
+    if (barelyStarted && showId)
+      router.replace({
+        pathname: '/watch/[showId]/[episode]',
+        params: { showId, episode: String(n) },
+      });
+  }, [barelyStarted, showId, n]);
+  if (barelyStarted) return <View style={styles.fill} />;
 
   return (
     <View style={styles.fill}>

@@ -2,7 +2,6 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import {
   ActivityIndicator,
-  Alert,
   FlatList,
   KeyboardAvoidingView,
   Platform,
@@ -16,7 +15,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Icon } from '@/components/Icon';
 import { Avatar, Button, IconButton, T } from '@/components/ui';
 import { api, type Comment, type CommentSort } from '@/data';
-import { useComments, useLikeComment, usePostComment } from '@/hooks/queries';
+import { useComments, useLikeComment, useMe, usePostComment } from '@/hooks/queries';
+import { notify, openSafetyMenu } from '@/lib/safety';
 import { useAppStore } from '@/store/useAppStore';
 import { colors, fonts, radius } from '@/theme/tokens';
 
@@ -35,6 +35,8 @@ export default function CommentsScreen() {
   const comments = useComments(showId, episode, sort);
   const post = usePostComment(showId, episode);
   const like = useLikeComment(showId, episode);
+  const me = useMe();
+  const signedIn = Boolean(me.data);
 
   const tabs: { key: CommentSort; label: string }[] = [
     { key: 'top', label: 'Top' },
@@ -45,6 +47,10 @@ export default function CommentsScreen() {
   const submit = () => {
     const body = draft.trim();
     if (!body || post.isPending) return;
+    if (!signedIn) {
+      router.push('/sign-in');
+      return;
+    }
     post.mutate(
       { body, atSec: pin ? atSec : null },
       {
@@ -52,26 +58,22 @@ export default function CommentsScreen() {
           setDraft('');
           setSort('newest');
         },
+        onError: (e) => notify(e instanceof Error ? e.message : 'Your comment didn’t post. Try again.'),
       },
     );
   };
 
-  const report = (c: Comment) => {
-    const send = () => void api.reportComment(c.id, 'user_report');
-    if (Platform.OS === 'web') {
-      send();
-      globalThis.alert?.('Thanks. Our team will review this comment.');
-      return;
-    }
-    Alert.alert(
-      'Report comment?',
-      'Our team will review it. You can also block this person from their profile.',
-      [
-        { text: 'Cancel', style: 'cancel' },
-        { text: 'Report', style: 'destructive', onPress: send },
-      ],
+  const report = (c: Comment) =>
+    openSafetyMenu(
+      { kind: 'comment', id: c.id, author: c.author, mine: c.author.id === me.data?.id },
+      {
+        onChanged: () => void comments.refetch(),
+        onDelete: async () => {
+          await api.deleteComment(c.id);
+          await comments.refetch();
+        },
+      },
     );
-  };
 
   return (
     <KeyboardAvoidingView
@@ -100,7 +102,17 @@ export default function CommentsScreen() {
         ))}
       </View>
 
-      {comments.isPending ? (
+      {!signedIn && !me.isPending ? (
+        <View style={{ padding: 16, gap: 10 }}>
+          <T variant="caption">Sign in to read and join the conversation.</T>
+          <Button compact label="Sign in" style={{ alignSelf: 'flex-start' }} onPress={() => router.push('/sign-in')} />
+        </View>
+      ) : comments.isError ? (
+        <View style={{ padding: 16, gap: 10 }}>
+          <T variant="caption">Comments didn’t load. Check your connection.</T>
+          <Button compact kind="outline" label="Try again" style={{ alignSelf: 'flex-start' }} onPress={() => void comments.refetch()} />
+        </View>
+      ) : comments.isPending ? (
         <ActivityIndicator color={colors.gold} style={{ marginTop: 40 }} />
       ) : (
         <FlatList
@@ -166,7 +178,7 @@ export default function CommentsScreen() {
                   </Pressable>
                   <IconButton
                     icon="more"
-                    label="Report or block"
+                    label={c.author.id === me.data?.id ? 'Delete comment' : 'Report or block'}
                     size={36}
                     color={colors.dim}
                     onPress={() => report(c)}

@@ -21,7 +21,7 @@ export function nextPremiere(show: Show, now = new Date()) {
 /**
  * Opens the phone's own "Add event" card (Apple Calendar on iPhone, the calendar app on Android),
  * filled in with the premiere: title, start time in the viewer's time zone, alerts 15 and 5 minutes
- * before, and a link that opens the live room in Snippets. The viewer just taps Add.
+ * before, and a link that opens the live room in Cinara. The viewer just taps Add.
  */
 export async function addPremiereToCalendar(
   show: Show,
@@ -36,7 +36,7 @@ export async function addPremiereToCalendar(
       title: `${show.title} · live premiere`,
       startDate: next.at,
       endDate: new Date(next.at.getTime() + PREMIERE_MINUTES * 60 * 1000),
-      location: 'Snippets app',
+      location: 'Cinara app',
       url: link,
       notes: `${dropLabel(next.drop)} premiere live at ${SLOT_LABEL}, with the cast in the chat.\n\nOpen the premiere: ${link}`,
       alarms: [{ relativeOffset: -15 }, { relativeOffset: -5 }],

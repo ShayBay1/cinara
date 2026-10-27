@@ -28,6 +28,7 @@ export type IconName =
   | 'back10'
   | 'forward10'
   | 'next'
+  | 'chevron'
   | 'turn'
   | 'live'
   | 'reel'
@@ -141,6 +142,7 @@ export function Icon({ name, size = 22, color = colors.text, filled = false }: P
       {name === 'pause' && <Path {...common} fill={color} d="M7 5h3.5v14H7zM13.5 5H17v14h-3.5z" />}
       {name === 'back10' && <Path {...common} d="M4 12a8 8 0 1 0 2.4-5.7M4 4v4h4" />}
       {name === 'forward10' && <Path {...common} d="M20 12a8 8 0 1 1-2.4-5.7M20 4v4h-4" />}
+      {name === 'chevron' && <Path {...common} d="M9 6l6 6-6 6" />}
       {name === 'next' && (
         <>
           <Path {...common} fill={color} d="M5 5v14l10-7z" />

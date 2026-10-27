@@ -14,6 +14,7 @@ export const keys = {
   requests: ['friend-requests'] as const,
   gifts: ['gifts'] as const,
   premiere: (showId: string) => ['premiere', showId] as const,
+  earnings: ['earnings'] as const,
 };
 
 export const useMe = () => useQuery({ queryKey: keys.me, queryFn: () => api.currentUser() });
@@ -35,6 +36,7 @@ export function useEpisodes(showId: string, numbers: number[]) {
 export const useFriends = () => useQuery({ queryKey: keys.friends, queryFn: () => api.listFriends() });
 export const useFriendRequests = () => useQuery({ queryKey: keys.requests, queryFn: () => api.listFriendRequests() });
 export const useGifts = () => useQuery({ queryKey: keys.gifts, queryFn: () => api.gifts(), staleTime: Infinity });
+export const useEarnings = () => useQuery({ queryKey: keys.earnings, queryFn: () => api.earnings(), staleTime: 5 * 60_000 });
 export const usePremiereStart = (showId: string) =>
   useQuery({ queryKey: keys.premiere(showId), queryFn: () => api.livePremiereStart(showId) });
 

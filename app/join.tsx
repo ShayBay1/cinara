@@ -4,6 +4,7 @@ import { useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
+import { LegalNote } from '@/components/LegalNote';
 import { Button, IconButton, T } from '@/components/ui';
 import { api, FREE_EPISODES } from '@/data';
 import { canSellHere, MEMBERSHIP_PRICE_LABEL, showExternalJoinLink, WEB_URL } from '@/lib/billing';
@@ -43,7 +44,7 @@ export default function JoinScreen() {
         <IconButton icon="close" label="Close" onPress={() => router.back()} />
       </View>
       <T variant="eyebrow" style={{ color: colors.gold }}>
-        {ep > FREE_EPISODES ? 'Free episodes complete' : 'Snippets membership'}
+        {ep > FREE_EPISODES ? 'Free episodes complete' : 'Cinara membership'}
       </T>
       <T variant="serif" style={{ fontSize: 36, lineHeight: 38 }}>
         {ep > FREE_EPISODES ? `Episode ${ep} is waiting.` : 'Every show. Every episode.'}
@@ -89,7 +90,7 @@ export default function JoinScreen() {
           {showExternalJoinLink ? (
             <Button
               kind="outline"
-              label="Join on the Snippets website"
+              label="Join on the Cinara website"
               onPress={() => void WebBrowser.openBrowserAsync(`${WEB_URL}/join`)}
             />
           ) : null}
@@ -100,6 +101,7 @@ export default function JoinScreen() {
         </>
       )}
       <Button kind="outline" label="Not now" onPress={() => router.back()} />
+      <LegalNote lead="Membership is covered by our" />
     </ScrollView>
   );
 }

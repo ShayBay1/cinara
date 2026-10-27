@@ -47,7 +47,7 @@ export default function CastScreen() {
   }
 
   const name = realName(member.actorName);
-  // Every role this person plays across Snippets (matched by name once real names are in).
+  // Every role this person plays across Cinara (matched by name once real names are in).
   const roles = (shows.data ?? []).flatMap((s) =>
     s.cast
       .map((c, i) => ({ s, c, i }))
@@ -79,17 +79,19 @@ export default function CastScreen() {
             {(name || member.role).charAt(0)}
           </T>
         </View>
-        <T
-          style={{
-            fontFamily: fonts.serif,
-            fontSize: 34,
-            lineHeight: 40,
-            color: colors.text,
-            textAlign: 'center',
-          }}
-        >
-          {name || '[Actor name]'}
-        </T>
+        {name ? (
+          <T
+            style={{
+              fontFamily: fonts.serif,
+              fontSize: 34,
+              lineHeight: 40,
+              color: colors.text,
+              textAlign: 'center',
+            }}
+          >
+            {name}
+          </T>
+        ) : null}
         <T
           style={{
             fontFamily: fonts.engraved,
@@ -126,7 +128,7 @@ export default function CastScreen() {
             textAlign: 'center',
           }}
         >
-          A real person, on screen and behind it. The cast co-own every show they make on Snippets.
+          A real person, on screen and behind it. The cast co-own every show they make on Cinara.
         </T>
       </View>
 

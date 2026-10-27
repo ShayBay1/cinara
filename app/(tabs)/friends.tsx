@@ -57,7 +57,7 @@ export default function FriendsScreen() {
       await Clipboard.setStringAsync(inviteUrl);
       say('Invite link copied', inviteUrl);
     } else {
-      await Share.share({ message: `Watch with me on Snippets: ${inviteUrl}` });
+      await Share.share({ message: `Watch with me on Cinara: ${inviteUrl}` });
     }
   };
 
@@ -97,7 +97,7 @@ export default function FriendsScreen() {
         </View>
         <Panel style={styles.invite}>
           <View style={{ flex: 1 }}>
-            <T variant="label">Invite friends to Snippets</T>
+            <T variant="label">Invite friends to Cinara</T>
             <T variant="caption" style={{ color: '#BDB4A6' }}>
               They land on Episode 1 and you're friends automatically.
             </T>

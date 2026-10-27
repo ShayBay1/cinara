@@ -17,11 +17,11 @@ export const canSellHere = Platform.OS === 'web';
 export const showExternalJoinLink =
   !canSellHere && process.env.EXPO_PUBLIC_ALLOW_EXTERNAL_PURCHASE_LINK === 'true';
 
-export const WEB_URL = process.env.EXPO_PUBLIC_WEB_URL ?? 'https://snippets.example';
+export const WEB_URL = process.env.EXPO_PUBLIC_WEB_URL ?? 'https://cinaratv.com';
 
 export function formatPrice(cents: number): string {
   return `$${(cents / 100).toFixed(2)}`;
 }
 
 /** Membership price shown in the app. Keep in sync with the Stripe price on the website. */
-export const MEMBERSHIP_PRICE_LABEL = '$15';
+export const MEMBERSHIP_PRICE_LABEL = '$14.99';

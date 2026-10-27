@@ -68,7 +68,7 @@ export function ShowCard({
 
   const share = () => {
     haptic.tap();
-    void Share.share({ message: `${show.title} on Snippets: ${show.tagline}` });
+    void Share.share({ message: `${show.title} on Cinara: ${show.tagline}` });
   };
 
   return (
@@ -206,17 +206,17 @@ export function ComingSoonCard({
 }) {
   const share = () => {
     haptic.tap();
-    void Share.share({ message: `${soon.title ?? 'A new show'} is coming to Snippets.` });
+    void Share.share({ message: `${soon.title ?? 'A new show'} is coming to Cinara.` });
   };
   return (
     <View style={{ height, backgroundColor: colors.ink }}>
-      <KenBurns source={COMING_SOON_COVER} color="#2A2418" active={active} />
+      <KenBurns source={soon.coverUrl ? { uri: soon.coverUrl } : COMING_SOON_COVER} color="#2A2418" active={active} />
       <Fade stops={SHADE} />
       <View style={styles.info} pointerEvents="box-none">
         <View style={styles.badge}>
           <Text style={styles.badgeText}>COMING SOON{soon.arrives ? ` · ${soon.arrives.toUpperCase()}` : ''}</Text>
         </View>
-        <Text style={styles.eyebrow}>Next on Snippets</Text>
+        <Text style={styles.eyebrow}>Next on Cinara</Text>
         <Text style={styles.title} numberOfLines={2}>
           {soon.title ?? 'A new show'}
         </Text>

@@ -3,11 +3,12 @@ import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
 import { KeyboardAvoidingView, Platform, StyleSheet, TextInput, View } from 'react-native';
 
+import { LegalNote } from '@/components/LegalNote';
 import { Button, IconButton, T } from '@/components/ui';
 import { api } from '@/data';
 import { colors, fonts, radius } from '@/theme/tokens';
 
-/** Passwordless sign-in: we email a 6-digit code. */
+/** Passwordless sign-in: we email an 8-digit code. */
 export default function SignInScreen() {
   const qc = useQueryClient();
   const [email, setEmail] = useState('');
@@ -49,7 +50,7 @@ export default function SignInScreen() {
       </T>
       <T style={{ color: colors.textSoft }}>
         {step === 'email'
-          ? 'New here or coming back, it’s the same: we email you a 6-digit code. No password.'
+          ? 'New here or coming back, it’s the same: we email you an 8-digit code. No password.'
           : `Enter the code we sent to ${email.trim()}.`}
       </T>
       {step === 'email' ? (
@@ -68,13 +69,13 @@ export default function SignInScreen() {
       ) : (
         <TextInput
           value={code}
-          onChangeText={(v) => setCode(v.replace(/\D/g, '').slice(0, 6))}
-          placeholder="123456"
+          onChangeText={(v) => setCode(v.replace(/\D/g, '').slice(0, 8))}
+          placeholder="12345678"
           placeholderTextColor={colors.dim}
           keyboardType="number-pad"
           autoComplete="one-time-code"
           textContentType="oneTimeCode"
-          accessibilityLabel="Six digit code"
+          accessibilityLabel="Eight digit code"
           style={[styles.input, { letterSpacing: 6, fontSize: 22 }]}
         />
       )}
@@ -99,13 +100,15 @@ export default function SignInScreen() {
       ) : (
         <Button
           label="Sign in"
-          disabled={code.length !== 6}
+          disabled={code.length < 8}
           loading={busy}
           onPress={() =>
             run(async () => {
-              await api.verifySignInCode(email.trim(), code);
+              const user = await api.verifySignInCode(email.trim(), code);
               await qc.invalidateQueries();
-              router.back();
+              // New accounts start with a placeholder name; ask them to pick a real one.
+              if (/^user[0-9a-f]{8}$/.test(user.handle)) router.replace({ pathname: '/settings', params: { pick: '1' } });
+              else router.back();
             })
           }
         />
@@ -126,6 +129,7 @@ export default function SignInScreen() {
       {step === 'code' ? (
         <Button kind="ghost" label="Use a different email" onPress={() => setStep('email')} />
       ) : null}
+      {step === 'email' ? <LegalNote /> : null}
     </KeyboardAvoidingView>
   );
 }

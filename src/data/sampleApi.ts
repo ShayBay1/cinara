@@ -1,4 +1,4 @@
-import type { SnippetsApi } from './api';
+import type { PlatformApi } from './api';
 import {
   COMING_SOON,
   FRIEND_REQUESTS,
@@ -8,11 +8,12 @@ import {
   SAMPLE_VIDEO,
   SHOWS,
   sampleComments,
+  sampleEarnings,
 } from './sample';
 import type { ChatMessage, Comment, CommentSort, Friend, FriendRequest, UserSummary } from './types';
 
 /** In-memory backend with sample content. Used when Supabase isn't configured. */
-export function createSampleApi(): SnippetsApi {
+export function createSampleApi(): PlatformApi {
   const me: UserSummary = { id: 'me', handle: 'you' };
   let avatarUrl: string | null = null;
   const comments = new Map<string, Comment[]>();
@@ -43,6 +44,9 @@ export function createSampleApi(): SnippetsApi {
     async signOut() {
       await wait();
     },
+    async deleteAccount() {
+      await wait();
+    },
     async membership() {
       return { active: false };
     },
@@ -50,6 +54,10 @@ export function createSampleApi(): SnippetsApi {
       await wait(300);
       avatarUrl = localUri;
       return localUri;
+    },
+    async removeAvatar() {
+      await wait();
+      avatarUrl = null;
     },
 
     async listShows() {
@@ -104,6 +112,38 @@ export function createSampleApi(): SnippetsApi {
     async reportComment() {
       await wait();
     },
+    async deleteComment() {
+      await wait();
+    },
+    async setHandle() {
+      await wait();
+    },
+    async setBirthYear() {
+      await wait();
+    },
+    async saveProgress() {},
+    async listProgress() {
+      return [];
+    },
+    async setWatching() {},
+    async setFollow() {},
+    async registerPushToken() {},
+    async blockUser() {
+      await wait();
+    },
+    async unblockUser() {
+      await wait();
+    },
+    async listBlocked() {
+      await wait();
+      return [];
+    },
+    async reportUser() {
+      await wait();
+    },
+    async reportChat() {
+      await wait();
+    },
 
     async listFriends() {
       await wait();
@@ -146,10 +186,19 @@ export function createSampleApi(): SnippetsApi {
       await wait(50);
     },
     async createGiftCheckout() {
-      return `${process.env.EXPO_PUBLIC_WEB_URL ?? 'https://snippets.example'}/checkout/demo-gift`;
+      return `${process.env.EXPO_PUBLIC_WEB_URL ?? 'https://cinaratv.com'}/checkout/demo-gift`;
     },
     async createMembershipCheckout() {
-      return `${process.env.EXPO_PUBLIC_WEB_URL ?? 'https://snippets.example'}/checkout/demo-membership`;
+      return `${process.env.EXPO_PUBLIC_WEB_URL ?? 'https://cinaratv.com'}/checkout/demo-membership`;
+    },
+
+    async recordWatch() {
+      return 0;
+    },
+
+    async earnings() {
+      await wait();
+      return sampleEarnings(new Date());
     },
   };
 }

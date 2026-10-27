@@ -120,9 +120,60 @@ export interface ComingSoon {
   teaser: string;
   starring: string;
   arrives: string;
+  /** Key art uploaded in the admin; the bundled mock-up is used until there is one. */
+  coverUrl?: string | null;
 }
 
 export interface Membership {
   active: boolean;
   renewsOn?: string | null;
+}
+
+/* ---------- The Cinara Share (actor pay) ---------- */
+
+/** One show's line on an actor's statement. Money in cents. */
+export interface ShowShare {
+  showId: ShowId;
+  showTitle: string;
+  role: string;
+  points: number;
+  /** All the points on the show, every role together. */
+  totalPoints: number;
+  minutesWatched: number;
+  /** Members who watched the show this period. */
+  members: number;
+  /** The show's revenue this period, after only card fees, refunds and tax. */
+  revenueCents: number;
+  /** The show's revenue in all earlier periods together. */
+  earnedBeforeCents: number;
+  /** The production budget written in the contract; the pool rises to 60% once revenue reaches it. */
+  budgetCents: number;
+  /** The server's figures (they include cents carried from last quarter). Used when present. */
+  poolCents?: number;
+  shareCents?: number;
+}
+
+export interface GiftShareLine {
+  count: number;
+  grossCents: number;
+  cardFeesCents: number;
+  /** The server's 90% figure, when present. */
+  shareCents?: number;
+}
+
+export interface ShareStatement {
+  /** e.g. "2026-Q3" */
+  quarter: string;
+  shows: ShowShare[];
+  gifts: GiftShareLine;
+  /** open = the quarter is still running; due = ended, not paid yet; paid = paid. */
+  status: 'open' | 'due' | 'paid';
+  paidOn?: string | null;
+}
+
+export interface ActorEarnings {
+  /** The quarter in progress, to date. */
+  current: ShareStatement;
+  /** Earlier quarters, newest first. */
+  past: ShareStatement[];
 }

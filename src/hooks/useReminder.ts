@@ -1,11 +1,12 @@
 import { useCallback, useState } from 'react';
 import { Alert, Platform } from 'react-native';
 
-import type { Show } from '@/data';
+import { api, type Show } from '@/data';
 import { addPremiereToCalendar } from '@/lib/calendarCard';
 import { haptic } from '@/lib/haptics';
 import { cancelReminder, scheduleNextPremiere } from '@/lib/reminders';
 import { capitalize, dayLabel, SLOT_LABEL } from '@/lib/schedule';
+import { registerForPush } from '@/lib/sync';
 import { useAppStore } from '@/store/useAppStore';
 
 /** Turns a show's premiere reminder on or off, and reports what happened. */
@@ -19,9 +20,26 @@ export function useReminder(show: Show | undefined) {
     setBusy(true);
     try {
       if (notificationId) {
-        await cancelReminder(notificationId);
+        if (notificationId === 'push') await api.setFollow(show.id, false).catch(() => undefined);
+        else await cancelReminder(notificationId);
         setReminder(show.id, null);
         haptic.tap();
+        return;
+      }
+      // Signed in on a phone: follow the show on the server so every drop sends a push alert.
+      let pushed = false;
+      try {
+        await api.setFollow(show.id, true);
+        pushed = await registerForPush();
+        if (!pushed) await api.setFollow(show.id, false);
+      } catch {
+        pushed = false;
+      }
+      if (pushed) {
+        setReminder(show.id, 'push');
+        haptic.success();
+        const card = await addPremiereToCalendar(show);
+        if (card === 'unavailable') notify('Reminder set', `We’ll alert you every time ${show.title} drops at ${SLOT_LABEL}.`);
         return;
       }
       const result = await scheduleNextPremiere(show);
@@ -42,13 +60,13 @@ export function useReminder(show: Show | undefined) {
         if (card !== 'saved') {
           notify(
             'Notifications are off',
-            'Turn on notifications for Snippets in Settings, or add the premiere to your calendar.',
+            'Turn on notifications for Cinara in Settings, or add the premiere to your calendar.',
           );
         }
       } else if (result.reason === 'unsupported') {
         notify(
           'Reminders live in the app',
-          'Get the Snippets app to be reminded before each premiere.',
+          'Get the Cinara app to be reminded before each premiere.',
         );
       }
     } finally {

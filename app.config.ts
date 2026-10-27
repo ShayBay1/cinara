@@ -10,11 +10,21 @@ import type { ExpoConfig } from 'expo/config';
  */
 const EAS_PROJECT_ID = process.env.EAS_PROJECT_ID ?? 'e2ccae92-2991-4245-8835-5db955af7fbc';
 
+// Store and test builds must talk to the real backend. Without these keys the app would quietly
+// fall back to sample data, so stop the build instead. (Set them in the EAS environment on expo.dev.)
+const profile = process.env.EAS_BUILD_PROFILE;
+if ((profile === 'production' || profile === 'preview') && (!process.env.EXPO_PUBLIC_SUPABASE_URL || !process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY)) {
+  throw new Error(
+    `EXPO_PUBLIC_SUPABASE_URL and EXPO_PUBLIC_SUPABASE_ANON_KEY must be set for the "${profile}" build (expo.dev > Project > Environment variables).`,
+  );
+}
+
 const config: ExpoConfig = {
-  name: 'Snippets',
+  name: 'Cinara',
+  // Kept as 'snippets': it links to the existing project on expo.dev. Rename the project there first.
   slug: 'snippets',
   owner: 'shayshaydonalddinneen',
-  scheme: 'snippets',
+  scheme: 'cinara',
   version: '0.1.0',
   // The app is always upright. Only the player and live premieres turn, and they do it themselves.
   orientation: 'portrait',
@@ -22,7 +32,7 @@ const config: ExpoConfig = {
   icon: './assets/icon.png',
   backgroundColor: '#08080A',
   ios: {
-    bundleIdentifier: 'com.snippets.app',
+    bundleIdentifier: 'com.cinara.app',
     supportsTablet: false,
     infoPlist: {
       ITSAppUsesNonExemptEncryption: false,
@@ -31,7 +41,7 @@ const config: ExpoConfig = {
     },
   },
   android: {
-    package: 'com.snippets.app',
+    package: 'com.cinara.app',
     adaptiveIcon: {
       foregroundImage: './assets/adaptive-icon.png',
       backgroundColor: '#08080A',
@@ -73,7 +83,7 @@ const config: ExpoConfig = {
     [
       'expo-image-picker',
       {
-        photosPermission: 'Snippets uses your photos so you can choose a profile picture.',
+        photosPermission: 'Cinara uses your photos so you can choose a profile picture.',
         cameraPermission: false,
         microphonePermission: false,
       },
@@ -83,7 +93,7 @@ const config: ExpoConfig = {
       'expo-calendar',
       {
         calendarPermission:
-          'Snippets adds premieres you choose to your calendar so you get a reminder before 8/7c.',
+          'Cinara adds premieres you choose to your calendar so you get a reminder before 8/7c.',
       },
     ],
   ],

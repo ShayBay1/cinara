@@ -33,7 +33,7 @@ function widgets() {
   /* eslint-enable @typescript-eslint/no-require-imports */
 }
 
-const linkTo = (show: Show) => `snippets://show/${show.id}`;
+const linkTo = (show: Show) => `cinara://show/${show.id}`;
 
 /** Gives the widget a timeline: one entry now, then one at each moment its text should change. */
 export function syncTonightWidget(shows: Show[], now = new Date()) {
@@ -42,7 +42,7 @@ export function syncTonightWidget(shows: Show[], now = new Date()) {
     const { Tonight } = widgets();
     const next = upcomingPremieres(shows, now, 1).slice(0, 3);
     if (!next.length) {
-      Tonight.updateSnapshot({ title: '', at: 0, day: '', url: 'snippets://' });
+      Tonight.updateSnapshot({ title: '', at: 0, day: '', url: 'cinara://' });
       return;
     }
     const entries: { date: Date; props: TonightWidgetProps }[] = [];
@@ -104,7 +104,7 @@ export async function syncPremiereActivity(shows: Show[], remindedIds: string[],
       await first!.update(props, endAt);
       await Promise.all(extra.map((a) => a.end('immediate')));
     } else {
-      Premiere.start(props, `snippets://live/${target.show.id}`, endAt);
+      Premiere.start(props, `cinara://live/${target.show.id}`, endAt);
     }
   } catch (e) {
     console.warn('live activity sync failed', e);

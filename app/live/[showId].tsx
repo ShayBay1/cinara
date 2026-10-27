@@ -44,10 +44,12 @@ import {
   useEpisodes,
   useFriends,
   useGifts,
+  useMe,
   useMembership,
   usePremiereStart,
   useShow,
 } from '@/hooks/queries';
+import { notify, openSafetyMenu } from '@/lib/safety';
 import { useNow } from '@/hooks/useNow';
 import { useReminder } from '@/hooks/useReminder';
 import { countdownParts, DOORS_OPEN_MS, premiereFor, premiereStage } from '@/lib/premieres';
@@ -145,7 +147,7 @@ function Lobby({ show, now }: { show: Show; now: Date }) {
   const coming = (friends.data ?? []).filter((f) => f.watching?.showId === show.id);
   const invite = () =>
     void Share.share({
-      message: `${show.title} premieres live at 8/7c on Snippets, with the cast in the chat. Come watch with me.`,
+      message: `${show.title} premieres live at 8/7c on Cinara, with the cast in the chat. Come watch with me.`,
     });
 
   return (
@@ -391,6 +393,9 @@ function Live({
   const setChatHidden = useAppStore((s) => s.setChatHidden);
   const smoothRotation = useAppStore((s) => s.followTurn);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
+  const me = useMe();
+  const myIdRef = useRef<string | undefined>(undefined);
+  myIdRef.current = me.data?.id;
   const [unread, setUnread] = useState(0);
   const [draft, setDraft] = useState('');
   const [giftOpen, setGiftOpen] = useState(false);
@@ -498,6 +503,8 @@ function Live({
 
   useEffect(() => {
     const unsubscribe = api.subscribeToChat(show.id, (m) => {
+      // Our own text messages are already on screen (added the moment we send).
+      if (m.kind === 'text' && m.author.id === myIdRef.current) return;
       setMessages((list) => [...list, m].slice(-MAX_MESSAGES));
       if (chatHiddenRef.current) setUnread((n) => n + 1);
       if (m.kind === 'gift') setToast(m);
@@ -514,11 +521,16 @@ function Live({
   const send = (body: string) => {
     const text = body.trim();
     if (!text) return;
+    if (!me.data) {
+      router.push('/sign-in');
+      return;
+    }
+    const localId = `me-${Date.now()}`;
     setMessages((list) =>
       [
         ...list,
         {
-          id: `me-${Date.now()}`,
+          id: localId,
           kind: 'text' as const,
           author: { id: 'me', handle: 'you' },
           body: text,
@@ -527,7 +539,11 @@ function Live({
       ].slice(-MAX_MESSAGES),
     );
     setDraft('');
-    void api.sendChat(show.id, text);
+    api.sendChat(show.id, text).catch((e: unknown) => {
+      // Take back the line we showed and say why it didn't send.
+      setMessages((list) => list.filter((m) => m.id !== localId));
+      notify(e instanceof Error ? e.message : 'Your message didn’t send. Try again.');
+    });
   };
   const toggleChat = () => {
     setChatHidden(!chatHidden);
@@ -561,11 +577,7 @@ function Live({
   const chatLines = (
     <>
       {messages.length === 0 ? (
-        <ChatLine
-          name={castLabel(show.cast[0] ?? { role: 'The cast', actorName: '' })}
-          tag="CAST"
-          body="Watching live with you. This one's my favorite."
-        />
+        <ChatLine name="Cinara" body="You'll see your friends and the cast here. Say hi." />
       ) : null}
       {messages.map((m, i) => (
         <ChatLine
@@ -580,6 +592,13 @@ function Live({
               : `sent ${giftName(m.giftId)} to ${recipientLabel(show, m.to)}`
           }
           fade={0.4 + (0.6 * (i + 1)) / messages.length}
+          onLongPress={
+            m.author.id === 'me' || m.author.id === me.data?.id || m.id.startsWith('me-')
+              ? undefined
+              : () => openSafetyMenu({ kind: 'chat', id: m.id, author: m.author, mine: false }, {
+                  onChanged: () => setMessages((list) => list.filter((x) => x.author.id !== m.author.id)),
+                })
+          }
         />
       ))}
     </>
@@ -895,6 +914,7 @@ function ChatLine({
   me,
   gift,
   fade = 1,
+  onLongPress,
 }: {
   name: string;
   body: string;
@@ -902,9 +922,17 @@ function ChatLine({
   me?: boolean;
   gift?: boolean;
   fade?: number;
+  /** Report or block the writer (other people's lines only). */
+  onLongPress?: () => void;
 }) {
   return (
-    <View style={{ opacity: fade, gap: 1 }}>
+    <Pressable
+      disabled={!onLongPress}
+      onLongPress={onLongPress}
+      delayLongPress={350}
+      accessibilityHint={onLongPress ? 'Long press to report or block' : undefined}
+      style={{ opacity: fade, gap: 1 }}
+    >
       <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
         <T
           variant="label"
@@ -943,7 +971,7 @@ function ChatLine({
       >
         {body}
       </T>
-    </View>
+    </Pressable>
   );
 }
 
@@ -1029,13 +1057,22 @@ function GiftSheet({
   const checkout = async () => {
     if (!gift) return;
     setBusy(true);
+    const input = { showId: show.id, giftId: gift.id, to: recipients[to]?.key ?? 'cast' };
     try {
-      const url = await api.createGiftCheckout({
-        showId: show.id,
-        giftId: gift.id,
-        to: recipients[to]?.key ?? 'cast',
-      });
+      let url: string;
+      try {
+        url = await api.createGiftCheckout(input);
+      } catch (e) {
+        if ((e as { code?: string }).code !== 'age_required') throw e;
+        // Gifts are 18+: ask once, save it, then try again.
+        const answer = globalThis.prompt?.('Gifts are for viewers 18 and over. What year were you born?');
+        if (!answer) return;
+        await api.setBirthYear(Number(answer.trim()));
+        url = await api.createGiftCheckout(input);
+      }
       globalThis.location?.assign(url);
+    } catch (e) {
+      notify(e instanceof Error ? e.message : 'Checkout didn’t open. Try again.');
     } finally {
       setBusy(false);
     }

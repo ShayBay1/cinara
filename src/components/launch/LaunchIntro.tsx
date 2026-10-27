@@ -14,14 +14,15 @@ import Animated, {
 
 /**
  * The painted opening, built to introduce the Feed:
- *  1. Video (0 to 1.05 s): the oil-paint reel turns, its ring draws on, "Snippets." comes and goes.
+ *  1. Video (0 to 1.05 s): the oil-paint reel turns, its ring draws on, the name comes and goes.
+ *     (cinara-opening-painted.mp4: the original painted render with the name repainted as Cinara.)
  *  2. The reel's window opens for real: painted stills of the reel, with the window cut out, zoom
  *     past the edges of the screen, and through the window you see the actual Feed (its first show
  *     already settling in). The stills swap every two frames so the paint keeps boiling.
  *  3. The projector flickers over the picture as it arrives.
  * The video keeps playing invisibly to the end so the stinger (clatter, rush, warm chord) finishes.
  */
-const VIDEO = require('../../../assets/launch/snippets-opening-painted.mp4');
+const VIDEO = require('../../../assets/launch/cinara-opening-painted.mp4');
 const WINDOWS = [
   require('../../../assets/launch/window-0.webp'),
   require('../../../assets/launch/window-1.webp'),
@@ -72,6 +73,7 @@ export function LaunchIntro({
   const dark = useSharedValue(0);
   const opened = useRef(false);
   const finished = useRef(false);
+  const revealedRef = useRef(false);
 
   const player = useVideoPlayer(VIDEO, (p) => {
     p.loop = false;
@@ -89,6 +91,7 @@ export function LaunchIntro({
     onFinished();
   };
   const reveal = () => {
+    revealedRef.current = true;
     setRevealed(true);
     onRevealed();
   };
@@ -111,16 +114,25 @@ export function LaunchIntro({
   };
 
   useEffect(() => {
+    // The window opens 1.05 s into the video. Three cues can start that clock, whichever comes first,
+    // so a missed event can never leave the reel frozen: the video reporting that it's playing, the
+    // video's own clock passing the mark, or (if the video is already playing when we start listening)
+    // right away. If the video never starts at all, the window still opens on time.
     let openTimer: ReturnType<typeof setTimeout> | undefined;
-    const startClock = () => {
-      if (openTimer) return;
-      openTimer = setTimeout(() => openWindow(), OPEN_AT_MS);
+    const startClock = (alreadyMs = 0) => {
+      if (openTimer || opened.current) return;
+      openTimer = setTimeout(() => openWindow(), Math.max(0, OPEN_AT_MS - alreadyMs));
     };
+    player.timeUpdateEventInterval = 0.05;
     const playing = player.addListener('playingChange', ({ isPlaying }) => {
       if (isPlaying) {
         onReady();
-        startClock();
+        startClock(player.currentTime * 1000);
       }
+    });
+    const time = player.addListener('timeUpdate', ({ currentTime }) => {
+      if (currentTime > 0) startClock(currentTime * 1000);
+      if (currentTime * 1000 >= OPEN_AT_MS) openWindow();
     });
     const status = player.addListener('statusChange', ({ status: s }) => {
       if (s === 'readyToPlay') onReady();
@@ -129,15 +141,24 @@ export function LaunchIntro({
         openWindow(true);
       }
     });
-    const ended = player.addListener('playToEnd', finish);
-    // If the video never starts, open anyway; and never hold the app longer than this.
+    if (player.playing) {
+      onReady();
+      startClock(player.currentTime * 1000);
+    }
+    // The video ending only closes the intro once the window has fully opened; until then the
+    // window's own animation decides (so the zoom is never cut off).
+    const ended = player.addListener('playToEnd', () => {
+      if (revealedRef.current) finish();
+    });
+    // If the video never starts, open anyway (at full speed), and never hold the app longer than this.
     const noStart = setTimeout(() => {
       onReady();
-      openWindow(true);
-    }, 2500);
+      openWindow();
+    }, OPEN_AT_MS + 600);
     const safety = setTimeout(finish, 6000);
     return () => {
       playing.remove();
+      time.remove();
       status.remove();
       ended.remove();
       clearTimeout(noStart);

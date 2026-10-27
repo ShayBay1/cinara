@@ -103,7 +103,7 @@ function ShowPage({ show }: { show: Show }) {
       </View>
 
       <View style={styles.body}>
-        <T style={styles.eyebrow}>A Snippets original</T>
+        <T style={styles.eyebrow}>A Cinara original</T>
         <T style={styles.title}>{show.title}</T>
         <T style={styles.hook}>{show.tagline}</T>
         <T style={styles.meta}>{seasonLine}</T>
@@ -229,12 +229,12 @@ function ShowPage({ show }: { show: Show }) {
           contentContainerStyle={{ paddingHorizontal: 16, gap: 14 }}
         >
           {show.cast.map((c, index) => {
-            const name = c.actorName.startsWith('[') ? '[Actor]' : c.actorName;
+            const name = c.actorName.trim() && !c.actorName.startsWith('[') ? c.actorName.trim() : '';
             return (
               <Pressy
                 key={c.role}
                 accessibilityRole="button"
-                accessibilityLabel={`${name}, plays ${c.role}. Open their page.`}
+                accessibilityLabel={name ? `${name}, plays ${c.role}. Open their page.` : `${c.role}. Open their page.`}
                 onPress={() =>
                   router.push({
                     pathname: '/cast/[showId]/[index]',
@@ -257,19 +257,21 @@ function ShowPage({ show }: { show: Show }) {
                   }}
                   numberOfLines={1}
                 >
-                  {name}
+                  {name || c.role}
                 </T>
-                <T
-                  style={{
-                    fontFamily: fonts.body,
-                    fontSize: 11,
-                    color: colors.muted,
-                    textAlign: 'center',
-                  }}
-                  numberOfLines={1}
-                >
-                  {c.role}
-                </T>
+                {name ? (
+                  <T
+                    style={{
+                      fontFamily: fonts.body,
+                      fontSize: 11,
+                      color: colors.muted,
+                      textAlign: 'center',
+                    }}
+                    numberOfLines={1}
+                  >
+                    {c.role}
+                  </T>
+                ) : null}
               </Pressy>
             );
           })}

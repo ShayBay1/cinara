@@ -1,7 +1,10 @@
 import { router, useIsFocused } from 'expo-router';
 import { StatusBar } from 'expo-status-bar';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { FlatList, StyleSheet, Text, useWindowDimensions, View, type ViewToken } from 'react-native';
+import { FlatList, StyleSheet, Text, useWindowDimensions, View } from 'react-native';
+
+/** The bit of FlatList's viewability info we use. */
+type ViewToken = { index?: number | null; isViewable: boolean };
 import Animated, { Easing, interpolate, useAnimatedStyle, useSharedValue, withTiming } from 'react-native-reanimated';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -20,7 +23,7 @@ import { colors, fonts } from '@/theme/tokens';
 type Item = { kind: 'show'; show: Show } | { kind: 'soon'; soon: ComingSoon };
 
 /**
- * Feed: the screen Snippets opens on. One show per screen, full height; swipe up for the next.
+ * Feed: the screen Cinara opens on. One show per screen, full height; swipe up for the next.
  * Shows you're partway through come first, then the rest, with the next show to arrive slotted in.
  */
 export default function FeedScreen() {

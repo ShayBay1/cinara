@@ -24,6 +24,7 @@ import { Button, ErrorState, T } from '@/components/ui';
 import { FREE_EPISODES, type Episode, type Show } from '@/data';
 import { useEpisode, useMembership, useShow } from '@/hooks/queries';
 import { useTurn, type Turn } from '@/hooks/useTurn';
+import { useWatchTracker } from '@/hooks/useWatchTracker';
 import { WEB_URL } from '@/lib/billing';
 import { CHROME_FADE_MS, CHROME_MS, REFRAME_MS, reframeAt, shotIndex, viewerSize, type Orientation } from '@/lib/turn';
 import { useAppStore } from '@/store/useAppStore';
@@ -45,10 +46,23 @@ export default function WatchScreen() {
     }
   }, [locked, membership.isSuccess, n, show.data]);
 
-  if (show.isError || episode.isError) {
+  const waitingOnMembership = n > FREE_EPISODES && membership.isError;
+  if (show.isError || episode.isError || waitingOnMembership) {
+    const reason = episode.error instanceof Error ? episode.error.message : '';
+    const message = waitingOnMembership
+      ? 'We couldn’t check your membership. Check your connection and try again.'
+      : /isn.t (out|ready)|members only/i.test(reason)
+        ? reason
+        : 'This episode didn’t load. Check your connection.';
     return (
       <View style={styles.center}>
-        <ErrorState message="This episode didn’t load. Check your connection." onRetry={() => void episode.refetch()} />
+        <ErrorState
+          message={message}
+          onRetry={() => {
+            void membership.refetch();
+            void episode.refetch();
+          }}
+        />
         <Button kind="outline" label="Close" onPress={() => router.back()} />
       </View>
     );
@@ -100,10 +114,16 @@ function Player({ show, episode, isMember }: { show: Show; episode: Episode; isM
     p.play();
   });
   const { isPlaying } = useEvent(player, 'playingChange', { isPlaying: player.playing });
+  // Watched time for the Cinara Share: counted only while the video really plays.
+  const watch = useWatchTracker(show.id, episode.number, episode.number >= show.latestEpisode);
+  useEffect(() => {
+    if (!isPlaying) watch.onPause();
+  }, [isPlaying, watch]);
   const duration = player.duration > 0 ? player.duration : episode.durationSec;
 
   useEventListener(player, 'timeUpdate', ({ currentTime }) => {
     setTime(currentTime);
+    if (player.playing) watch.onTime(currentTime);
     if (Math.abs(currentTime - lastSaved.current) >= 5) {
       lastSaved.current = currentTime;
       saveProgress(show.id, { episode: episode.number, positionSec: currentTime, durationSec: duration });
@@ -189,6 +209,7 @@ function Player({ show, episode, isMember }: { show: Show; episode: Episode; isM
   }, [episode.number, isLatest, nextNeedsMembership, player, saveProgress, show.id]);
 
   useEventListener(player, 'playToEnd', () => {
+    watch.onPause();
     saveProgress(show.id, { episode: episode.number, positionSec: duration, durationSec: duration });
     if (isLatest || nextNeedsMembership) goNext();
     else setOverlay({ kind: 'next', count: UP_NEXT_SECONDS, paused: false });

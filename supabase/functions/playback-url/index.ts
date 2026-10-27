@@ -4,12 +4,11 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 
 // Returns where to stream one episode, after checking it's released and, past the free
 // episodes, that the viewer is a member. Episodes on Mux get a short-lived signed URL.
-// Episodes not uploaded yet play a public test stream so the app can be tested end to end.
+// Episodes whose video isn't uploaded yet return 404 "not ready" so the app shows a clear message.
 //
 // Secrets (Supabase > Edge Functions > Secrets): MUX_SIGNING_KEY_ID, MUX_SIGNING_KEY_PRIVATE
 // (the base64 private key Mux shows once when you create a signing key).
 const FREE_EPISODES = 10;
-const TEST_STREAM = "https://test-streams.mux.dev/x36xhzz/x36xhzz.m3u8";
 const URL_LIFETIME_SEC = 6 * 60 * 60;
 const cors = {
   "Access-Control-Allow-Origin": "*",
@@ -57,7 +56,7 @@ Deno.serve(async (req) => {
 
     const { data: ep } = await admin.from("episodes").select("title, mux_playback_id, duration_sec, reframe").eq("show_id", showId).eq("number", n).maybeSingle();
     const title = ep?.title ?? show.episode_titles?.[n - 1] ?? `Episode ${n}`;
-    if (!ep) return json({ title, url: TEST_STREAM, durationSec: 90, reframe: null });
+    if (!ep?.mux_playback_id) return json({ error: "This episode isn't ready yet. Check back soon.", code: "not_ready", title }, 404);
     const token = muxToken(ep.mux_playback_id);
     const url = `https://stream.mux.com/${ep.mux_playback_id}.m3u8${token ? `?token=${token}` : ""}`;
     return json({ title, url, durationSec: ep.duration_sec, reframe: ep.reframe });

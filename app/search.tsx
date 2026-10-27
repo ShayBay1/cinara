@@ -222,7 +222,7 @@ export default function SearchScreen() {
                     </View>
                     <View style={{ flex: 1 }}>
                       <T style={{ fontFamily: fonts.bodyHeavy, fontSize: 15, color: colors.text }}>
-                        {realName(c.actorName) || '[Actor]'}
+                        {realName(c.actorName) || c.role}
                       </T>
                       <T
                         style={{ fontFamily: fonts.bodyBold, fontSize: 12, color: colors.muted }}
@@ -253,7 +253,8 @@ const styles = StyleSheet.create({
     borderColor: colors.line,
     backgroundColor: colors.surface,
   },
-  input: { flex: 1, height: 46, color: colors.text, fontFamily: fonts.body, fontSize: 16 },
+  // outlineWidth 0: no square browser focus ring inside the rounded field.
+  input: { flex: 1, height: 46, color: colors.text, fontFamily: fonts.body, fontSize: 16, outlineWidth: 0 },
   cancel: { height: 46, paddingHorizontal: 6, justifyContent: 'center' },
   headRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   h2: {

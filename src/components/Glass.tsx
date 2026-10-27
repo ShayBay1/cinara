@@ -30,6 +30,8 @@ const TINT = 'rgba(40,28,14,0.35)';
 function useReduceTransparency() {
   const [reduce, setReduce] = useState(false);
   useEffect(() => {
+    // Not on the web: there's nothing to follow, and the call doesn't exist.
+    if (typeof AccessibilityInfo.isReduceTransparencyEnabled !== 'function' || Platform.OS === 'web') return;
     let alive = true;
     void AccessibilityInfo.isReduceTransparencyEnabled().then((v) => alive && setReduce(v));
     const sub = AccessibilityInfo.addEventListener('reduceTransparencyChanged', setReduce);

@@ -228,8 +228,8 @@ const AnimatedBlur = Animated.createAnimatedComponent(BlurView);
  * are cut to land on a strong final frame for this.) Over it, a title card
  * (show name, next episode, how far you've come), and one button. Continue turns into Sign up and
  * Sign in with a soft spring. Everything arrives in a short, staggered fade.
- * - Sign up: the website version opens checkout; the apps open the website (when allowed) or create
- *   a free account, since nothing is sold in the apps.
+ * - Sign up: the website version opens checkout; the apps show it only when the external join link is
+ *   allowed. Otherwise the apps offer Sign in alone, since nothing is sold or advertised in the apps.
  * - Sign in: members sign in and the next episode starts right here.
  */
 export function JoinWeb({ show, nextEpisode, sideways, safe }: { show: Show; nextEpisode: number; sideways: boolean; safe: Safe }) {
@@ -253,10 +253,10 @@ export function JoinWeb({ show, nextEpisode, sideways, safe }: { show: Show; nex
     return { opacity: k, transform: [{ translateY: (1 - k) * 18 }, { scale: 0.96 + 0.04 * k }] };
   });
 
+  const offerJoin = canSellHere || showExternalJoinLink;
   const signUp = () => {
     if (canSellHere) router.replace({ pathname: '/join', params: { showId: show.id, episode: String(nextEpisode) } });
     else if (showExternalJoinLink) void WebBrowser.openBrowserAsync(`${WEB_URL}/join?show=${show.id}&episode=${nextEpisode}`);
-    else router.push('/sign-in');
   };
 
   const watched = nextEpisode - 1;
@@ -266,7 +266,7 @@ export function JoinWeb({ show, nextEpisode, sideways, safe }: { show: Show; nex
   const titleCard = (
     <View style={{ gap: 10, alignItems: sideways ? 'flex-start' : 'center', flexShrink: 1 }}>
       <Animated.View entering={enter(0)}>
-        <T style={styles.brandEyebrow}>A SNIPPETS ORIGINAL</T>
+        <T style={styles.brandEyebrow}>A CINARA ORIGINAL</T>
       </Animated.View>
       <Animated.View entering={enter(1)}>
         <T style={[styles.showTitle, sideways && { fontSize: 38, lineHeight: 46, textAlign: 'left' }]} numberOfLines={2}>
@@ -301,19 +301,23 @@ export function JoinWeb({ show, nextEpisode, sideways, safe }: { show: Show; nex
           </Pressable>
         </Animated.View>
         <View pointerEvents={open ? 'box-none' : 'none'} style={[StyleSheet.absoluteFill, { gap: 12 }]}>
-          <Animated.View style={first}>
-            <Pressable accessibilityRole="button" onPress={signUp} style={({ pressed }) => [styles.pill, styles.pillSolid, pressed && styles.pressedPill]}>
-              <T style={styles.pillSolidText}>Sign up</T>
-            </Pressable>
-          </Animated.View>
-          <Animated.View style={second}>
+          {offerJoin ? (
+            <Animated.View style={first}>
+              <Pressable accessibilityRole="button" onPress={signUp} style={({ pressed }) => [styles.pill, styles.pillSolid, pressed && styles.pressedPill]}>
+                <T style={styles.pillSolidText}>{canSellHere ? 'Sign up' : 'Join on the web'}</T>
+              </Pressable>
+            </Animated.View>
+          ) : null}
+          <Animated.View style={offerJoin ? second : first}>
             <Pressable accessibilityRole="button" onPress={() => router.push('/sign-in')} style={({ pressed }) => [styles.pill, styles.pillGlass, pressed && styles.pressedPill]}>
               <T style={styles.pillGlassText}>Sign in</T>
             </Pressable>
           </Animated.View>
         </View>
       </View>
-      <T style={styles.finePrint}>Members watch every episode the night it premieres.</T>
+      <T style={styles.finePrint}>
+        {offerJoin ? 'Members watch every episode the night it premieres.' : 'Members sign in to keep watching.'}
+      </T>
     </Animated.View>
   );
 

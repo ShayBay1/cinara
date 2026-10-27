@@ -5,7 +5,7 @@ import Svg, { Circle, Path, Rect } from 'react-native-svg';
 import { colors } from '@/theme/tokens';
 
 /**
- * The Snippets reel: the one object that does many jobs. It is the loader (spinning), the countdown
+ * The Cinara reel: the one object that does many jobs. It is the loader (spinning), the countdown
  * (its outer ring empties as 8/7c gets closer) and the progress ring. Same drawing as the mark:
  * a wheel, four lines and the centre window.
  */
