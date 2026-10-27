@@ -162,7 +162,7 @@ export function createSupabaseApi(url: string, anonKey: string): PlatformApi {
 
     async listComments(showId, episode, sort: CommentSort) {
       const rows = must(
-        await sb.rpc('list_comments', { p_show_id: showId, p_episode: episode, p_sort: sort }),
+        await sb.rpc('list_comment_threads', { p_show_id: showId, p_episode: episode, p_sort: sort }),
       ) as Array<Record<string, unknown>>;
       return rows.map(
         (r): Comment => ({
@@ -176,15 +176,54 @@ export function createSupabaseApi(url: string, anonKey: string): PlatformApi {
           likedByMe: r.liked_by_me as boolean,
           isFriend: r.is_friend as boolean,
           createdAt: r.created_at as string,
+          parentId: null,
+          replyCount: Number(r.reply_count ?? 0),
         }),
       );
     },
-    async postComment({ showId, episode, body, atSec }) {
+    async listReplies(commentId) {
+      const rows = must(await sb.rpc('list_replies', { p_parent: commentId })) as Array<Record<string, unknown>>;
+      return rows.map(
+        (r): Comment => ({
+          id: r.id as string,
+          showId: '',
+          episode: 0,
+          author: toUser(r.author as never),
+          body: r.body as string,
+          atSec: null,
+          likes: r.likes as number,
+          likedByMe: r.liked_by_me as boolean,
+          isFriend: r.is_friend as boolean,
+          createdAt: r.created_at as string,
+          parentId: commentId,
+        }),
+      );
+    },
+    async postComment({ showId, episode, body, atSec, parentId }) {
       const id = await userId();
-      must(await sb.from('comments').insert({ show_id: showId, episode, body, at_sec: atSec ?? null, author_id: id }));
-      const [newest] = await this.listComments(showId, episode, 'newest');
-      if (!newest) throw new Error('Comment was not saved.');
-      return newest;
+      const row = must(
+        await sb
+          .from('comments')
+          .insert({ show_id: showId, episode, body, at_sec: atSec ?? null, author_id: id, parent_id: parentId ?? null })
+          .select('id, body, at_sec, parent_id, created_at')
+          .single(),
+      ) as { id: string; body: string; at_sec: number | null; parent_id: string | null; created_at: string };
+      const me = await this.currentUser();
+      if (!me) throw new Error('Please sign in first.');
+      return {
+        id: row.id,
+        showId,
+        episode,
+        author: me,
+        body: row.body,
+        atSec: row.at_sec,
+        likes: 0,
+        likedByMe: false,
+        isFriend: false,
+        createdAt: row.created_at,
+        parentId: row.parent_id,
+        replyCount: 0,
+      };
     },
     async setCommentLike(commentId, liked) {
       const id = await userId();

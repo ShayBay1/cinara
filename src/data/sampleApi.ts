@@ -78,12 +78,23 @@ export function createSampleApi(): PlatformApi {
 
     async listComments(showId, episode, sort: CommentSort) {
       await wait();
-      const list = [...getComments(showId, episode)];
+      const all = getComments(showId, episode);
+      const list = all
+        .filter((c) => !c.parentId)
+        .map((c) => ({ ...c, replyCount: all.filter((r) => r.parentId === c.id).length }));
       if (sort === 'friends') return list.filter((c) => c.isFriend || c.author.id === me.id);
       if (sort === 'newest') return list.sort((a, b) => b.createdAt.localeCompare(a.createdAt));
       return list.sort((a, b) => b.likes - a.likes);
     },
-    async postComment({ showId, episode, body, atSec }) {
+    async listReplies(commentId) {
+      await wait();
+      for (const list of comments.values()) {
+        const replies = list.filter((c) => c.parentId === commentId);
+        if (replies.length) return [...replies].sort((a, b) => a.createdAt.localeCompare(b.createdAt));
+      }
+      return [];
+    },
+    async postComment({ showId, episode, body, atSec, parentId }) {
       await wait();
       const c: Comment = {
         id: `mine-${Date.now()}`,
@@ -96,6 +107,7 @@ export function createSampleApi(): PlatformApi {
         likedByMe: false,
         isFriend: false,
         createdAt: new Date().toISOString(),
+        parentId: parentId ?? null,
       };
       getComments(showId, episode).unshift(c);
       return c;

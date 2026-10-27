@@ -46,7 +46,10 @@ export interface PlatformApi {
 
   // Comments
   listComments(showId: string, episode: number, sort: CommentSort): Promise<Comment[]>;
-  postComment(input: { showId: string; episode: number; body: string; atSec?: number | null }): Promise<Comment>;
+  /** Posts a comment, or a reply when parentId is set (replies always join the top comment's thread). */
+  postComment(input: { showId: string; episode: number; body: string; atSec?: number | null; parentId?: string | null }): Promise<Comment>;
+  /** The replies under one comment, oldest first. */
+  listReplies(commentId: string): Promise<Comment[]>;
   setCommentLike(commentId: string, liked: boolean): Promise<void>;
   reportComment(commentId: string, reason: string): Promise<void>;
   /** Deletes one of your own comments. */

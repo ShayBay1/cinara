@@ -51,16 +51,27 @@ export const useComments = (showId: string, n: number, sort: CommentSort) =>
 export function usePostComment(showId: string, n: number) {
   const qc = useQueryClient();
   return useMutation({
-    mutationFn: (input: { body: string; atSec?: number | null }) => api.postComment({ showId, episode: n, ...input }),
-    onSuccess: () => qc.invalidateQueries({ queryKey: ['comments', showId, n] }),
+    mutationFn: (input: { body: string; atSec?: number | null; parentId?: string | null }) =>
+      api.postComment({ showId, episode: n, ...input }),
+    onSuccess: (c) => {
+      void qc.invalidateQueries({ queryKey: ['comments', showId, n] });
+      if (c.parentId) void qc.invalidateQueries({ queryKey: ['replies', c.parentId] });
+    },
   });
 }
+
+/** One comment's replies, loaded when its thread is opened. */
+export const useReplies = (commentId: string, enabled: boolean) =>
+  useQuery({ queryKey: ['replies', commentId], queryFn: () => api.listReplies(commentId), enabled });
 
 export function useLikeComment(showId: string, n: number) {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ id, liked }: { id: string; liked: boolean }) => api.setCommentLike(id, liked),
-    onSettled: () => qc.invalidateQueries({ queryKey: ['comments', showId, n] }),
+    onSettled: () => {
+      void qc.invalidateQueries({ queryKey: ['comments', showId, n] });
+      void qc.invalidateQueries({ queryKey: ['replies'] });
+    },
   });
 }
 

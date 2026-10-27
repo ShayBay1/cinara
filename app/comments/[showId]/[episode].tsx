@@ -1,5 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { useState } from 'react';
+import { useQueryClient } from '@tanstack/react-query';
+import { type ComponentRef, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
@@ -15,7 +16,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { Icon } from '@/components/Icon';
 import { Avatar, Button, IconButton, T } from '@/components/ui';
 import { api, type Comment, type CommentSort } from '@/data';
-import { useComments, useLikeComment, useMe, usePostComment } from '@/hooks/queries';
+import { useComments, useLikeComment, useMe, usePostComment, useReplies } from '@/hooks/queries';
 import { notify, openSafetyMenu } from '@/lib/safety';
 import { useAppStore } from '@/store/useAppStore';
 import { colors, fonts, radius } from '@/theme/tokens';
@@ -32,6 +33,12 @@ export default function CommentsScreen() {
   const [sort, setSort] = useState<CommentSort>('top');
   const [draft, setDraft] = useState('');
   const [pin, setPin] = useState(atSec !== null);
+  /** The thread a reply goes into (always the top comment) and who it's addressed to. */
+  const [replyTo, setReplyTo] = useState<{ rootId: string; handle: string } | null>(null);
+  /** Threads that are open. */
+  const [open, setOpen] = useState<Record<string, boolean>>({});
+  const input = useRef<ComponentRef<typeof TextInput>>(null);
+  const qc = useQueryClient();
   const comments = useComments(showId, episode, sort);
   const post = usePostComment(showId, episode);
   const like = useLikeComment(showId, episode);
@@ -44,6 +51,18 @@ export default function CommentsScreen() {
     ...(friendsFirst ? [{ key: 'friends' as const, label: 'Friends' }] : []),
   ];
 
+  const startReply = (rootId: string, c: Comment) => {
+    if (!signedIn) {
+      router.push('/sign-in');
+      return;
+    }
+    setReplyTo({ rootId, handle: c.author.handle });
+    setOpen((o) => ({ ...o, [rootId]: true }));
+    // Replying inside a thread to someone other than the top commenter: tag them.
+    setDraft(c.id !== rootId ? `@${c.author.handle} ` : '');
+    setTimeout(() => input.current?.focus(), 50);
+  };
+
   const submit = () => {
     const body = draft.trim();
     if (!body || post.isPending) return;
@@ -51,29 +70,43 @@ export default function CommentsScreen() {
       router.push('/sign-in');
       return;
     }
+    const parentId = replyTo?.rootId ?? null;
     post.mutate(
-      { body, atSec: pin ? atSec : null },
+      { body, atSec: !parentId && pin ? atSec : null, parentId },
       {
         onSuccess: () => {
           setDraft('');
-          setSort('newest');
+          if (parentId) {
+            setOpen((o) => ({ ...o, [parentId]: true }));
+            setReplyTo(null);
+          } else {
+            setSort('newest');
+          }
         },
         onError: (e) => notify(e instanceof Error ? e.message : 'Your comment didn’t post. Try again.'),
       },
     );
   };
 
-  const report = (c: Comment) =>
+  const menu = (c: Comment) =>
     openSafetyMenu(
       { kind: 'comment', id: c.id, author: c.author, mine: c.author.id === me.data?.id },
       {
-        onChanged: () => void comments.refetch(),
+        onChanged: () => {
+          void comments.refetch();
+          void qc.invalidateQueries({ queryKey: ['replies'] });
+        },
         onDelete: async () => {
           await api.deleteComment(c.id);
           await comments.refetch();
+          await qc.invalidateQueries({ queryKey: ['replies'] });
         },
       },
     );
+
+  const onLike = (c: Comment) => like.mutate({ id: c.id, liked: !c.likedByMe });
+  const pendingLike = (c: Comment) =>
+    like.variables?.id === c.id && like.isPending ? (like.variables.liked ? 1 : -1) : 0;
 
   return (
     <KeyboardAvoidingView
@@ -119,6 +152,7 @@ export default function CommentsScreen() {
           data={comments.data ?? []}
           keyExtractor={(c) => c.id}
           contentContainerStyle={{ padding: 16, gap: 18 }}
+          keyboardShouldPersistTaps="handled"
           ListEmptyComponent={
             <T variant="caption">
               {sort === 'friends'
@@ -127,71 +161,37 @@ export default function CommentsScreen() {
             </T>
           }
           renderItem={({ item: c }) => (
-            <View style={{ flexDirection: 'row', gap: 10 }}>
-              <Avatar handle={c.author.handle} url={c.author.avatarUrl} size={38} />
-              <View style={{ flex: 1, gap: 4 }}>
-                <View
-                  style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}
-                >
-                  <T variant="label" style={{ fontSize: 13 }}>
-                    {c.author.handle}
-                  </T>
-                  {c.author.isCast ? <Badge label="CAST" gold /> : null}
-                  {c.isFriend ? <Badge label="FRIEND" /> : null}
-                  <T variant="caption">{timeAgo(c.createdAt)}</T>
-                </View>
-                <T style={{ fontSize: 14, color: '#E5E1EA' }}>
-                  {c.atSec != null ? <T style={styles.stamp}>{`${fmt(c.atSec)}  `}</T> : null}
-                  {c.body}
-                </T>
-                <View style={{ flexDirection: 'row', alignItems: 'center', marginLeft: -10 }}>
-                  <Pressable
-                    accessibilityRole="button"
-                    accessibilityLabel={c.likedByMe ? 'Unlike' : 'Like'}
-                    accessibilityState={{ selected: c.likedByMe }}
-                    onPress={() => like.mutate({ id: c.id, liked: !c.likedByMe })}
-                    style={styles.act}
-                  >
-                    <Icon
-                      name="heart"
-                      size={16}
-                      color={c.likedByMe ? colors.accent : colors.muted}
-                      filled={c.likedByMe}
-                    />
-                    <T variant="caption">
-                      {String(
-                        c.likes +
-                          (like.variables?.id === c.id && like.isPending
-                            ? like.variables.liked
-                              ? 1
-                              : -1
-                            : 0),
-                      )}
-                    </T>
-                  </Pressable>
-                  <Pressable
-                    accessibilityRole="button"
-                    onPress={() => setDraft(`@${c.author.handle} `)}
-                    style={styles.act}
-                  >
-                    <T variant="caption">Reply</T>
-                  </Pressable>
-                  <IconButton
-                    icon="more"
-                    label={c.author.id === me.data?.id ? 'Delete comment' : 'Report or block'}
-                    size={36}
-                    color={colors.dim}
-                    onPress={() => report(c)}
-                  />
-                </View>
-              </View>
-            </View>
+            <Thread
+              comment={c}
+              open={!!open[c.id]}
+              onToggle={() => setOpen((o) => ({ ...o, [c.id]: !o[c.id] }))}
+              meId={me.data?.id}
+              onReply={startReply}
+              onLike={onLike}
+              pendingLike={pendingLike}
+              onMenu={menu}
+            />
           )}
         />
       )}
 
       <View style={[styles.composer, { paddingBottom: insets.bottom + 10 }]}>
-        {atSec !== null ? (
+        {replyTo ? (
+          <View style={styles.replying}>
+            <T variant="caption" style={{ flex: 1 }}>{`Replying to @${replyTo.handle}`}</T>
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Cancel reply"
+              onPress={() => {
+                setReplyTo(null);
+                setDraft('');
+              }}
+              hitSlop={10}
+            >
+              <Icon name="close" size={16} color={colors.muted} />
+            </Pressable>
+          </View>
+        ) : atSec !== null ? (
           <Button
             compact
             kind="outline"
@@ -202,19 +202,20 @@ export default function CommentsScreen() {
         ) : null}
         <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
           <TextInput
+            ref={input}
             value={draft}
             onChangeText={setDraft}
-            placeholder={`Say something about Episode ${episode}…`}
+            placeholder={replyTo ? `Reply to @${replyTo.handle}…` : `Say something about Episode ${episode}…`}
             placeholderTextColor={colors.dim}
             maxLength={400}
-            accessibilityLabel="Add a comment"
+            accessibilityLabel={replyTo ? 'Write a reply' : 'Add a comment'}
             returnKeyType="send"
             onSubmitEditing={submit}
             style={styles.input}
           />
           <Pressable
             accessibilityRole="button"
-            accessibilityLabel="Post comment"
+            accessibilityLabel={replyTo ? 'Post reply' : 'Post comment'}
             disabled={!draft.trim() || post.isPending}
             onPress={submit}
             style={[styles.send, { backgroundColor: draft.trim() ? colors.gold : '#4A4436' }]}
@@ -228,6 +229,100 @@ export default function CommentsScreen() {
         </View>
       </View>
     </KeyboardAvoidingView>
+  );
+}
+
+type RowActions = {
+  meId?: string;
+  onLike: (c: Comment) => void;
+  pendingLike: (c: Comment) => number;
+  onMenu: (c: Comment) => void;
+};
+
+/** A top comment with its replies tucked underneath. */
+function Thread({
+  comment,
+  open,
+  onToggle,
+  onReply,
+  ...actions
+}: RowActions & {
+  comment: Comment;
+  open: boolean;
+  onToggle: () => void;
+  onReply: (rootId: string, c: Comment) => void;
+}) {
+  const replies = useReplies(comment.id, open);
+  const count = Math.max(comment.replyCount ?? 0, replies.data?.length ?? 0);
+  return (
+    <View style={{ gap: 10 }}>
+      <CommentRow c={comment} size={38} onReply={() => onReply(comment.id, comment)} {...actions} />
+      {count > 0 ? (
+        <Pressable
+          accessibilityRole="button"
+          onPress={onToggle}
+          style={styles.threadToggle}
+          hitSlop={6}
+        >
+          <View style={styles.threadLine} />
+          <T variant="caption" style={{ color: colors.textSoft, fontFamily: fonts.bodyBold }}>
+            {open ? 'Hide replies' : `View ${count} ${count === 1 ? 'reply' : 'replies'}`}
+          </T>
+        </Pressable>
+      ) : null}
+      {open ? (
+        <View style={styles.replies}>
+          {replies.isPending ? <ActivityIndicator color={colors.gold} /> : null}
+          {(replies.data ?? []).map((r) => (
+            <CommentRow key={r.id} c={r} size={28} onReply={() => onReply(comment.id, r)} {...actions} />
+          ))}
+        </View>
+      ) : null}
+    </View>
+  );
+}
+
+function CommentRow({ c, size, onReply, meId, onLike, pendingLike, onMenu }: RowActions & { c: Comment; size: number; onReply: () => void }) {
+  return (
+    <View style={{ flexDirection: 'row', gap: 10 }}>
+      <Avatar handle={c.author.handle} url={c.author.avatarUrl} size={size} />
+      <View style={{ flex: 1, gap: 4 }}>
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6, flexWrap: 'wrap' }}>
+          <T variant="label" style={{ fontSize: 13 }}>
+            {c.author.handle}
+          </T>
+          {c.author.isCast ? <Badge label="CAST" gold /> : null}
+          {c.isFriend ? <Badge label="FRIEND" /> : null}
+          <T variant="caption">{timeAgo(c.createdAt)}</T>
+        </View>
+        <T style={{ fontSize: 14, color: '#E5E1EA' }}>
+          {c.atSec != null ? <T style={styles.stamp}>{`${fmt(c.atSec)}  `}</T> : null}
+          {c.body}
+        </T>
+        <View style={{ flexDirection: 'row', alignItems: 'center', marginLeft: -10 }}>
+          <Pressable
+            accessibilityRole="button"
+            accessibilityLabel={c.likedByMe ? 'Unlike' : 'Like'}
+            accessibilityState={{ selected: c.likedByMe }}
+            onPress={() => onLike(c)}
+            style={styles.act}
+          >
+            <Icon name="heart" size={16} color={c.likedByMe ? colors.accent : colors.muted} filled={c.likedByMe} />
+            <T variant="caption">{String(c.likes + pendingLike(c))}</T>
+          </Pressable>
+          <Pressable accessibilityRole="button" accessibilityLabel={`Reply to ${c.author.handle}`} onPress={onReply} style={styles.act}>
+            <T variant="caption">Reply</T>
+          </Pressable>
+          <IconButton
+            icon="more"
+            label={c.author.id === meId ? 'Delete comment' : 'Report or block'}
+            size={36}
+            color={colors.dim}
+            onPress={() => onMenu(c)}
+          />
+        </View>
+      </View>
+    </View>
   );
 }
 
@@ -287,6 +382,18 @@ const styles = StyleSheet.create({
     fontFamily: fonts.body,
     fontSize: 14,
   },
+  replying: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: radius.pill,
+    backgroundColor: '#1D1712',
+  },
+  threadToggle: { flexDirection: 'row', alignItems: 'center', gap: 8, marginLeft: 48, minHeight: 28 },
+  threadLine: { width: 24, height: StyleSheet.hairlineWidth * 2, backgroundColor: colors.line },
+  replies: { marginLeft: 48, gap: 14 },
   send: { width: 46, height: 46, borderRadius: 23, alignItems: 'center', justifyContent: 'center' },
   badgeGold: {
     backgroundColor: colors.gold,

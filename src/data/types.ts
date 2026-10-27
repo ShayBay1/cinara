@@ -73,6 +73,10 @@ export interface Comment {
   likedByMe: boolean;
   isFriend: boolean;
   createdAt: string;
+  /** Set on replies: the comment they belong under. */
+  parentId?: string | null;
+  /** On top-level comments: how many replies are in its thread. */
+  replyCount?: number;
 }
 
 export type CommentSort = 'top' | 'newest' | 'friends';
