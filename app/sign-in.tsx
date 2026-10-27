@@ -1,11 +1,12 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { KeyboardAvoidingView, Platform, StyleSheet, TextInput, View } from 'react-native';
+import { StyleSheet, TextInput, View } from 'react-native';
 
 import { LegalNote } from '@/components/LegalNote';
 import { Button, IconButton, T } from '@/components/ui';
 import { api } from '@/data';
+import { useKeyboardHeight } from '@/hooks/useKeyboardHeight';
 import { colors, fonts, radius } from '@/theme/tokens';
 
 /** Passwordless sign-in: we email an 8-digit code. */
@@ -15,6 +16,7 @@ export default function SignInScreen() {
   const [code, setCode] = useState('');
   const [step, setStep] = useState<'email' | 'code'>('email');
   const [busy, setBusy] = useState(false);
+  const keyboard = useKeyboardHeight();
   const [error, setError] = useState<string | null>(null);
   const validEmail = /^\S+@\S+\.\S+$/.test(email.trim());
   // "Resend code" unlocks 30 seconds after a code is sent.
@@ -38,10 +40,7 @@ export default function SignInScreen() {
   };
 
   return (
-    <KeyboardAvoidingView
-      style={styles.fill}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
+    <View style={[styles.fill, { paddingBottom: keyboard }]}>
       <View style={{ alignSelf: 'flex-end' }}>
         <IconButton icon="close" label="Close" onPress={() => router.back()} />
       </View>
@@ -130,7 +129,7 @@ export default function SignInScreen() {
         <Button kind="ghost" label="Use a different email" onPress={() => setStep('email')} />
       ) : null}
       {step === 'email' ? <LegalNote /> : null}
-    </KeyboardAvoidingView>
+    </View>
   );
 }
 

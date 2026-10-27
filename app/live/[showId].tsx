@@ -7,7 +7,6 @@ import {
   Animated as RNAnimated,
   Easing as RNEasing,
   Keyboard,
-  KeyboardAvoidingView,
   Modal,
   Platform,
   Pressable,
@@ -50,6 +49,7 @@ import {
   useShow,
 } from '@/hooks/queries';
 import { notify, openSafetyMenu } from '@/lib/safety';
+import { useKeyboardHeight } from '@/hooks/useKeyboardHeight';
 import { useNow } from '@/hooks/useNow';
 import { useReminder } from '@/hooks/useReminder';
 import { countdownParts, DOORS_OPEN_MS, premiereFor, premiereStage } from '@/lib/premieres';
@@ -394,6 +394,7 @@ function Live({
   const smoothRotation = useAppStore((s) => s.followTurn);
   const [messages, setMessages] = useState<ChatMessage[]>([]);
   const me = useMe();
+  const keyboard = useKeyboardHeight();
   const myIdRef = useRef<string | undefined>(undefined);
   myIdRef.current = me.data?.id;
   const [unread, setUnread] = useState(0);
@@ -691,11 +692,7 @@ function Live({
           },
         ]}
       >
-        <KeyboardAvoidingView
-          pointerEvents="box-none"
-          style={StyleSheet.absoluteFill}
-          behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-        >
+        <View pointerEvents="box-none" style={[StyleSheet.absoluteFill, { paddingBottom: keyboard }]}>
           <Animated.View
             pointerEvents={turn.turning ? 'none' : 'box-none'}
             style={[StyleSheet.absoluteFill, steadyStyle]}
@@ -891,7 +888,7 @@ function Live({
               <Button kind="outline" label="Leave" onPress={() => router.back()} />
             </View>
           ) : null}
-        </KeyboardAvoidingView>
+        </View>
       </View>
 
       {canSellHere ? (

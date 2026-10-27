@@ -1,11 +1,9 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useQueryClient } from '@tanstack/react-query';
-import { type ComponentRef, useRef, useState } from 'react';
+import { type ComponentRef, useEffect, useRef, useState } from 'react';
 import {
   ActivityIndicator,
   FlatList,
-  KeyboardAvoidingView,
-  Platform,
   Pressable,
   StyleSheet,
   TextInput,
@@ -17,22 +15,20 @@ import { Icon } from '@/components/Icon';
 import { Avatar, Button, IconButton, T } from '@/components/ui';
 import { api, type Comment, type CommentSort } from '@/data';
 import { useComments, useLikeComment, useMe, usePostComment, useReplies } from '@/hooks/queries';
+import { useKeyboardHeight } from '@/hooks/useKeyboardHeight';
 import { notify, openSafetyMenu } from '@/lib/safety';
 import { useAppStore } from '@/store/useAppStore';
 import { colors, fonts, radius } from '@/theme/tokens';
 
-const fmt = (s: number) => `${Math.floor(s / 60)}:${String(Math.floor(s % 60)).padStart(2, '0')}`;
 
 export default function CommentsScreen() {
   const insets = useSafeAreaInsets();
   const params = useLocalSearchParams<{ showId: string; episode: string; t?: string }>();
   const showId = params.showId ?? '';
   const episode = Number.parseInt(params.episode ?? '1', 10) || 1;
-  const atSec = params.t ? Number(params.t) : null;
   const friendsFirst = useAppStore((s) => s.friendsFirst);
   const [sort, setSort] = useState<CommentSort>('top');
   const [draft, setDraft] = useState('');
-  const [pin, setPin] = useState(atSec !== null);
   /** The thread a reply goes into (always the top comment) and who it's addressed to. */
   const [replyTo, setReplyTo] = useState<{ rootId: string; handle: string } | null>(null);
   /** Threads that are open. */
@@ -44,6 +40,7 @@ export default function CommentsScreen() {
   const like = useLikeComment(showId, episode);
   const me = useMe();
   const signedIn = Boolean(me.data);
+  const keyboard = useKeyboardHeight();
 
   const tabs: { key: CommentSort; label: string }[] = [
     { key: 'top', label: 'Top' },
@@ -72,7 +69,7 @@ export default function CommentsScreen() {
     }
     const parentId = replyTo?.rootId ?? null;
     post.mutate(
-      { body, atSec: !parentId && pin ? atSec : null, parentId },
+      { body, atSec: null, parentId },
       {
         onSuccess: () => {
           setDraft('');
@@ -109,10 +106,8 @@ export default function CommentsScreen() {
     like.variables?.id === c.id && like.isPending ? (like.variables.liked ? 1 : -1) : 0;
 
   return (
-    <KeyboardAvoidingView
-      style={styles.fill}
-      behavior={Platform.OS === 'ios' ? 'padding' : undefined}
-    >
+    // The whole sheet lifts by the keyboard's height, so the typing bar always sits right above it.
+    <View style={[styles.fill, { paddingBottom: keyboard }]}>
       <View style={styles.header}>
         <View>
           <T variant="title" style={{ fontSize: 17 }}>
@@ -175,7 +170,7 @@ export default function CommentsScreen() {
         />
       )}
 
-      <View style={[styles.composer, { paddingBottom: insets.bottom + 10 }]}>
+      <View style={[styles.composer, { paddingBottom: keyboard > 0 ? 10 : insets.bottom + 10 }]}>
         {replyTo ? (
           <View style={styles.replying}>
             <T variant="caption" style={{ flex: 1 }}>{`Replying to @${replyTo.handle}`}</T>
@@ -191,14 +186,6 @@ export default function CommentsScreen() {
               <Icon name="close" size={16} color={colors.muted} />
             </Pressable>
           </View>
-        ) : atSec !== null ? (
-          <Button
-            compact
-            kind="outline"
-            label={pin ? `Pinned to ${fmt(atSec)} · tap to remove` : `Pin to ${fmt(atSec)}`}
-            style={{ alignSelf: 'flex-start' }}
-            onPress={() => setPin((v) => !v)}
-          />
         ) : null}
         <View style={{ flexDirection: 'row', gap: 8, alignItems: 'center' }}>
           <TextInput
@@ -228,7 +215,7 @@ export default function CommentsScreen() {
           </Pressable>
         </View>
       </View>
-    </KeyboardAvoidingView>
+    </View>
   );
 }
 
@@ -293,10 +280,9 @@ function CommentRow({ c, size, onReply, meId, onLike, pendingLike, onMenu }: Row
           </T>
           {c.author.isCast ? <Badge label="CAST" gold /> : null}
           {c.isFriend ? <Badge label="FRIEND" /> : null}
-          <T variant="caption">{timeAgo(c.createdAt)}</T>
+          <Ago iso={c.createdAt} />
         </View>
         <T style={{ fontSize: 14, color: '#E5E1EA' }}>
-          {c.atSec != null ? <T style={styles.stamp}>{`${fmt(c.atSec)}  `}</T> : null}
           {c.body}
         </T>
         <View style={{ flexDirection: 'row', alignItems: 'center', marginLeft: -10 }}>
@@ -343,12 +329,30 @@ function Badge({ label, gold }: { label: string; gold?: boolean }) {
   );
 }
 
-function timeAgo(iso: string): string {
-  const mins = Math.max(0, Math.round((Date.now() - new Date(iso).getTime()) / 60_000));
-  if (mins < 1) return 'now';
-  if (mins < 60) return `${mins}m`;
-  const h = Math.round(mins / 60);
-  return h < 24 ? `${h}h` : `${Math.round(h / 24)}d`;
+/** Instagram-style age: 5s, 12m, 3h, 2d, 6w, then years. */
+function timeAgo(iso: string, now = Date.now()): string {
+  const s = Math.max(0, Math.floor((now - new Date(iso).getTime()) / 1000));
+  if (s < 60) return `${Math.max(1, s)}s`;
+  const m = Math.floor(s / 60);
+  if (m < 60) return `${m}m`;
+  const h = Math.floor(m / 60);
+  if (h < 24) return `${h}h`;
+  const d = Math.floor(h / 24);
+  if (d < 7) return `${d}d`;
+  const w = Math.floor(d / 7);
+  if (w < 52) return `${w}w`;
+  return `${Math.floor(d / 365)}y`;
+}
+
+/** The age next to a name. Ticks every second for the first minute, then every half minute. */
+function Ago({ iso }: { iso: string }) {
+  const [now, setNow] = useState(() => Date.now());
+  const fresh = now - new Date(iso).getTime() < 60_000;
+  useEffect(() => {
+    const id = setInterval(() => setNow(Date.now()), fresh ? 1000 : 30_000);
+    return () => clearInterval(id);
+  }, [fresh]);
+  return <T style={styles.ago}>{timeAgo(iso, now)}</T>;
 }
 
 const styles = StyleSheet.create({
@@ -361,7 +365,6 @@ const styles = StyleSheet.create({
     paddingTop: 16,
   },
   tabs: { flexDirection: 'row', gap: 8, paddingHorizontal: 16, paddingTop: 10 },
-  stamp: { fontFamily: fonts.bodyHeavy, color: colors.gold, fontSize: 13 },
   act: { minHeight: 36, flexDirection: 'row', alignItems: 'center', gap: 5, paddingHorizontal: 10 },
   composer: {
     borderTopWidth: 1,
@@ -382,6 +385,7 @@ const styles = StyleSheet.create({
     fontFamily: fonts.body,
     fontSize: 14,
   },
+  ago: { fontFamily: fonts.body, fontSize: 11.5, color: colors.dim, letterSpacing: 0.2 },
   replying: {
     flexDirection: 'row',
     alignItems: 'center',
