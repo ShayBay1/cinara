@@ -20,9 +20,13 @@ import Animated, {
  *     past the edges of the screen, and through the window you see the actual Feed (its first show
  *     already settling in). The stills swap every two frames so the paint keeps boiling.
  *  3. The projector flickers over the picture as it arrives.
+ *  4. The window bursts through right on the swell of the music; then a warm projector glow fades off
+ *     the Feed while the chord rings out, so the picture and the sound finish together.
  * The video keeps playing invisibly to the end so the stinger (clatter, rush, warm chord) finishes.
+ * (cinara-opening-v2.mp4: the same picture, with the chord given a natural 2-second ring-out; the
+ * original file faded the chord out after 0.25 s, which sounded cut off.)
  */
-const VIDEO = require('../../../assets/launch/cinara-opening-painted.mp4');
+const VIDEO = require('../../../assets/launch/cinara-opening-v2.mp4');
 const WINDOWS = [
   require('../../../assets/launch/window-0.webp'),
   require('../../../assets/launch/window-1.webp'),
@@ -30,7 +34,12 @@ const WINDOWS = [
 ];
 /** When the window starts to open, from the first frame of the video. */
 const OPEN_AT_MS = 1050;
-const ZOOM_MS = 850;
+/** The window clears the screen at ~2.05 s: right as the music peaks. */
+const ZOOM_MS = 1000;
+/** After that, the chord rings out for about this long; the warm glow fades with it. */
+const RING_OUT_MS = 1900;
+/** The whole sound, start to end. The intro never outlives it (or this, if the video stalls). */
+const SOUND_MS = 4430;
 /** Painting size, and the window's inner half-width in it (pixels). */
 const ART_W = 1080;
 const ART_H = 2340;
@@ -71,6 +80,7 @@ export function LaunchIntro({
   const [boil, setBoil] = useState(0);
   const z = useSharedValue(0);
   const dark = useSharedValue(0);
+  const glow = useSharedValue(0);
   const opened = useRef(false);
   const finished = useRef(false);
   const revealedRef = useRef(false);
@@ -94,6 +104,11 @@ export function LaunchIntro({
     revealedRef.current = true;
     setRevealed(true);
     onRevealed();
+    // The projector's warm light lingers on the Feed and fades as the chord rings out.
+    glow.value = withSequence(
+      withTiming(0.32, { duration: 90, easing: Easing.out(Easing.quad) }),
+      withTiming(0, { duration: RING_OUT_MS, easing: Easing.out(Easing.cubic) }),
+    );
   };
 
   const openWindow = (fast = false) => {
@@ -155,7 +170,7 @@ export function LaunchIntro({
       onReady();
       openWindow();
     }, OPEN_AT_MS + 600);
-    const safety = setTimeout(finish, 6000);
+    const safety = setTimeout(finish, SOUND_MS + 2500);
     return () => {
       playing.remove();
       time.remove();
@@ -175,10 +190,11 @@ export function LaunchIntro({
     return () => clearInterval(id);
   }, [open, revealed]);
 
-  // Once the window has cleared, finish when the sound does.
+  // Once the window has cleared, finish when the sound does (the video's end event usually comes
+  // first; this is the fallback). Unmounting stops the sound, so never earlier than the ring-out.
   useEffect(() => {
     if (revealed) {
-      const id = setTimeout(finish, 1200);
+      const id = setTimeout(finish, RING_OUT_MS + 700);
       return () => clearTimeout(id);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -188,6 +204,7 @@ export function LaunchIntro({
     transform: [{ scale: 1 + (maxScale - 1) * z.value }],
   }));
   const darkStyle = useAnimatedStyle(() => ({ opacity: dark.value }));
+  const glowStyle = useAnimatedStyle(() => ({ opacity: glow.value }));
 
   return (
     <View
@@ -216,6 +233,7 @@ export function LaunchIntro({
           </Animated.View>
         )}
         <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: '#050302' }, darkStyle]} pointerEvents="none" />
+        <Animated.View style={[StyleSheet.absoluteFill, { backgroundColor: '#FFC24A' }, glowStyle]} pointerEvents="none" />
       </Pressable>
     </View>
   );

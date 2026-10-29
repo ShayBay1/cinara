@@ -80,7 +80,7 @@ const textStyles = StyleSheet.create({
 
 /* ---------- Buttons ---------- */
 
-type ButtonKind = 'primary' | 'gold' | 'outline' | 'ghost' | 'live';
+type ButtonKind = 'primary' | 'gold' | 'outline' | 'ghost' | 'live' | 'dark';
 
 interface ButtonProps extends Omit<PressableProps, 'style' | 'children'> {
   label: string;
@@ -102,7 +102,7 @@ export function Button({
   ...rest
 }: ButtonProps) {
   const fg =
-    kind === 'primary' || kind === 'gold' ? colors.ink : kind === 'live' ? '#FFFFFF' : colors.text;
+    kind === 'primary' || kind === 'gold' ? colors.ink : kind === 'live' ? '#FFFFFF' : kind === 'dark' ? colors.gold : colors.text;
   // One primary style everywhere: solid gold leaf, dark text, 52 pt, pill.
   return (
     <Pressable
@@ -154,6 +154,8 @@ const btn = StyleSheet.create({
     backgroundColor: 'rgba(21,16,11,0.35)',
   },
   live: { backgroundColor: colors.live },
+  /** For use on gold surfaces (the Backstage ticket): dark button, gold lettering. */
+  dark: { backgroundColor: colors.ink },
   text: { fontFamily: fonts.bodyHeavy, fontSize: 15 },
   textCompact: { fontSize: 13 },
 });

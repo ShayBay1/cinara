@@ -9,6 +9,8 @@ import { Reel } from '@/components/Reel';
 import { Button, HumanStamp, T } from '@/components/ui';
 import { coverSource } from '@/data/covers';
 import { useShows } from '@/hooks/queries';
+import { useActors } from '@/social/hooks';
+import { Verified } from '@/components/Verified';
 import { useNow } from '@/hooks/useNow';
 import { useReminder } from '@/hooks/useReminder';
 import { countdownParts, premiereFor, premiereStage } from '@/lib/premieres';
@@ -26,6 +28,7 @@ export default function CastScreen() {
   const show = shows.data?.find((s) => s.id === showId);
   const member = show?.cast[Number(index)];
   const reminder = useReminder(show);
+  const actors = useActors();
 
   if (!show || !member) {
     return (
@@ -47,6 +50,12 @@ export default function CastScreen() {
   }
 
   const name = realName(member.actorName);
+  // Their social profile: the handle on the cast list, or the verified actor who plays this role.
+  const social =
+    (member.handle ? actors.data?.find((x) => x.handle === member.handle?.toLowerCase()) : undefined) ??
+    actors.data?.find((x) => x.roles.some((r) => r.showId === show.id && r.role === member.role));
+  const socialHandle = member.handle ?? social?.handle;
+  const openSocial = () => socialHandle && router.push({ pathname: '/actor/[handle]', params: { handle: socialHandle } });
   // Every role this person plays across Cinara (matched by name once real names are in).
   const roles = (shows.data ?? []).flatMap((s) =>
     s.cast
@@ -74,11 +83,30 @@ export default function CastScreen() {
       </Pressable>
 
       <View style={{ alignItems: 'center', gap: 10, paddingHorizontal: 24 }}>
-        <View style={[styles.face, { backgroundColor: tintFor(member.role) }]}>
-          <T style={{ fontFamily: fonts.serif, fontSize: 64, lineHeight: 72, color: colors.text }}>
-            {(name || member.role).charAt(0)}
-          </T>
-        </View>
+        <Pressable
+          onPress={openSocial}
+          disabled={!socialHandle}
+          accessibilityRole={socialHandle ? 'button' : undefined}
+          accessibilityLabel={socialHandle ? `${name || member.role}. Open their social page.` : undefined}
+          style={({ pressed }) => [{ alignItems: 'center', gap: 8 }, pressed && { opacity: 0.85, transform: [{ scale: 0.98 }] }]}
+        >
+          <View style={[styles.face, { backgroundColor: tintFor(member.role) }, social ? { borderWidth: 3, borderColor: colors.gold } : null]}>
+            {social?.avatarUrl ? (
+              <Image source={{ uri: social.avatarUrl }} style={StyleSheet.absoluteFill} contentFit="cover" />
+            ) : (
+              <T style={{ fontFamily: fonts.serif, fontSize: 64, lineHeight: 72, color: colors.text }}>
+                {(name || social?.displayName || member.role).charAt(0)}
+              </T>
+            )}
+          </View>
+          {socialHandle ? (
+            <View style={{ flexDirection: 'row', alignItems: 'center', gap: 5 }}>
+              <T style={{ fontFamily: fonts.bodyBold, fontSize: 13, color: colors.gold }}>{`@${socialHandle}`}</T>
+              {social?.verified ? <Verified size={13} /> : null}
+              <Icon name="chevron" size={13} color={colors.gold} />
+            </View>
+          ) : null}
+        </Pressable>
         {name ? (
           <T
             style={{
@@ -130,6 +158,21 @@ export default function CastScreen() {
         >
           A real person, on screen and behind it. The cast co-own every show they make on Cinara.
         </T>
+        {socialHandle ? (
+          <Button
+            compact
+            label="Posts and behind the scenes"
+            onPress={openSocial}
+            style={{ marginTop: 6, alignSelf: 'stretch' }}
+          />
+        ) : null}
+        <Button
+          compact
+          kind="outline"
+          label={`${show.title} fan room`}
+          onPress={() => router.push({ pathname: '/room/[showId]', params: { showId: show.id } })}
+          style={{ alignSelf: 'stretch' }}
+        />
       </View>
 
       <View style={styles.section}>
@@ -238,6 +281,7 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     borderWidth: 2,
     borderColor: colors.gold,
+    overflow: 'hidden',
   },
   section: { paddingTop: 30, paddingHorizontal: 16 },
   h2: {

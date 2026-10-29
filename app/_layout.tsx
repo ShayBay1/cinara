@@ -24,6 +24,7 @@ import { useLaunch } from '@/store/launch';
 
 import { useMe } from '@/hooks/queries';
 import { lockUpright } from '@/lib/orientationLock';
+import { useScreenProtection } from '@/lib/screenProtection';
 import { pullProgress, startProgressSync } from '@/lib/sync';
 import { colors } from '@/theme/tokens';
 
@@ -78,6 +79,7 @@ export default function RootLayout() {
   }, [fontsLoaded, fontError, introReady, introDone]);
 
   useNotificationDeepLinks();
+  useScreenProtection();
 
   if (!fontsLoaded && !fontError) return null;
 
@@ -110,6 +112,16 @@ export default function RootLayout() {
           <Stack.Screen name="cast/[showId]/[index]" options={{ animation: 'slide_from_right' }} />
           <Stack.Screen name="settings" options={{ animation: 'slide_from_right' }} />
           <Stack.Screen name="earnings" options={{ animation: 'slide_from_right' }} />
+          <Stack.Screen name="actor/[handle]" options={{ animation: 'slide_from_right' }} />
+          <Stack.Screen name="post/[id]" options={{ animation: 'slide_from_right' }} />
+          <Stack.Screen name="post/new" options={{ presentation: 'modal' }} />
+          <Stack.Screen name="room/[showId]" options={{ animation: 'slide_from_right' }} />
+          <Stack.Screen name="messages/index" options={{ animation: 'slide_from_right' }} />
+          <Stack.Screen name="messages/[threadId]" options={{ animation: 'slide_from_right' }} />
+          <Stack.Screen name="creator" options={{ animation: 'slide_from_right' }} />
+          <Stack.Screen name="backstage" options={{ presentation: 'modal' }} />
+          <Stack.Screen name="channel/[handle]/index" options={{ animation: 'slide_from_right' }} />
+          <Stack.Screen name="channel/[handle]/[messageId]" options={{ presentation: 'modal' }} />
           <Stack.Screen name="admin" />
           <Stack.Screen
             name="resume/[showId]/[episode]"

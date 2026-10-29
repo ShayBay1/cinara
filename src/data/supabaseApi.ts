@@ -51,11 +51,12 @@ export function createSupabaseApi(url: string, anonKey: string): PlatformApi {
     return data.user.id;
   };
 
-  const toUser = (row: { id: string; handle: string; avatar_url: string | null; is_cast?: boolean }): UserSummary => ({
+  const toUser = (row: { id: string; handle: string; avatar_url: string | null; is_cast?: boolean; verified?: boolean; verified_at?: string | null }): UserSummary => ({
     id: row.id,
     handle: row.handle,
     avatarUrl: row.avatar_url,
     isCast: row.is_cast ?? false,
+    verified: row.verified ?? !!row.verified_at,
   });
 
   return {
@@ -64,7 +65,7 @@ export function createSupabaseApi(url: string, anonKey: string): PlatformApi {
     async currentUser() {
       const { data } = await sb.auth.getUser();
       if (!data.user) return null;
-      const row = must(await sb.from('profiles').select('id, handle, avatar_url, is_cast').eq('id', data.user.id).single()) as {
+      const row = must(await sb.from('profiles').select('id, handle, avatar_url, is_cast, verified_at').eq('id', data.user.id).single()) as {
         id: string;
         handle: string;
         avatar_url: string | null;
@@ -318,7 +319,7 @@ export function createSupabaseApi(url: string, anonKey: string): PlatformApi {
         .channel(`chat:${showId}`)
         .on('postgres_changes', { event: 'INSERT', schema: 'public', table: 'chat_messages', filter: `show_id=eq.${showId}` }, (payload: { new: Record<string, unknown> }) => {
           const r = payload.new;
-          const author: UserSummary = { id: r.author_id as string, handle: r.author_handle as string, isCast: r.author_is_cast as boolean };
+          const author: UserSummary = { id: r.author_id as string, handle: r.author_handle as string, isCast: r.author_is_cast as boolean, verified: Boolean(r.author_verified) };
           const msg: ChatMessage =
             r.kind === 'gift'
               ? { id: r.id as string, kind: 'gift', author, giftId: r.gift_id as string, to: r.gift_to as string, createdAt: r.created_at as string }

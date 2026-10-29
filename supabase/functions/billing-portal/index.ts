@@ -34,9 +34,15 @@ Deno.serve(async (req) => {
     if (!user) return json({ error: "Sign in first." }, 401);
     const { data: m } = await db.from("memberships")
       .select("stripe_customer_id").eq("user_id", user.id).maybeSingle();
-    if (!m?.stripe_customer_id) return json({ error: "No membership on this account yet." }, 404);
+    // Fans who only subscribe to actors (no membership) manage those here too.
+    const { data: a } = m?.stripe_customer_id ? { data: null } : await db.from("actor_subscriptions")
+      .select("stripe_customer_id").eq("fan_id", user.id).not("stripe_customer_id", "is", null).limit(1).maybeSingle();
+    const { data: bp } = m?.stripe_customer_id || a?.stripe_customer_id ? { data: null } : await db.from("creator_passes")
+      .select("stripe_customer_id").eq("user_id", user.id).maybeSingle();
+    const customer = m?.stripe_customer_id ?? a?.stripe_customer_id ?? bp?.stripe_customer_id;
+    if (!customer) return json({ error: "No membership or subscriptions on this account yet." }, 404);
     const portal = await stripe.billingPortal.sessions.create({
-      customer: m.stripe_customer_id,
+      customer,
       return_url: `${siteFor(req)}/account`,
     });
     return json({ url: portal.url });

@@ -277,6 +277,24 @@ function ShowPage({ show }: { show: Show }) {
           })}
         </ScrollView>
       </View>
+
+      <View style={styles.section}>
+        <Pressable
+          accessibilityRole="button"
+          accessibilityLabel={`${show.title} fan room`}
+          onPress={() => router.push({ pathname: '/room/[showId]', params: { showId: show.id } })}
+          style={styles.roomBtn}
+        >
+          <Icon name="chat" size={20} color={colors.gold} />
+          <View style={{ flex: 1 }}>
+            <T style={{ fontFamily: fonts.bodyHeavy, fontSize: 15, color: colors.text }}>Fan room</T>
+            <T style={{ fontFamily: fonts.body, fontSize: 13, color: colors.muted }}>
+              Talk about {show.title} with other fans, any time.
+            </T>
+          </View>
+          <Icon name="chevron" size={18} color={colors.muted} />
+        </Pressable>
+      </View>
     </ScrollView>
   );
 }
@@ -474,6 +492,16 @@ function NextDrop({
 }
 
 const styles = StyleSheet.create({
+  roomBtn: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    padding: 14,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: colors.line,
+    backgroundColor: colors.surface,
+  },
   startOver: {
     flexDirection: 'row',
     alignItems: 'center',

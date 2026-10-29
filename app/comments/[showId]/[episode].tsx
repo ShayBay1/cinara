@@ -13,6 +13,7 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Icon } from '@/components/Icon';
 import { Avatar, Button, IconButton, T } from '@/components/ui';
+import { Verified } from '@/components/Verified';
 import { api, type Comment, type CommentSort } from '@/data';
 import { useComments, useLikeComment, useMe, usePostComment, useReplies } from '@/hooks/queries';
 import { useKeyboardHeight } from '@/hooks/useKeyboardHeight';
@@ -278,7 +279,7 @@ function CommentRow({ c, size, onReply, meId, onLike, pendingLike, onMenu }: Row
           <T variant="label" style={{ fontSize: 13 }}>
             {c.author.handle}
           </T>
-          {c.author.isCast ? <Badge label="CAST" gold /> : null}
+          {c.author.verified ? <Verified size={13} /> : c.author.isCast ? <Badge label="CAST" gold /> : null}
           {c.isFriend ? <Badge label="FRIEND" /> : null}
           <Ago iso={c.createdAt} />
         </View>

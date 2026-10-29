@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 
-import { closeQuarter, downloadCsv, markPaid, saveGift, useAdminAction, useAdminGifts, useQuarter, type AdminGift } from '@/admin/data';
+import { closeQuarter, downloadCsv, finalizePassMonth, markActorPaid, useMessageMonth, markPaid, saveGift, useAdminAction, useAdminGifts, usePassMonth, useQuarter, type AdminGift } from '@/admin/data';
 import { Btn, Card, ErrorText, Field, Loading, Page, Pill, s, Tr } from '@/admin/ui';
 import { count, money, previousQuarter, quarterOf, shortDate } from '@/lib/share';
 import { colors } from '@/theme/tokens';
@@ -130,12 +130,136 @@ export default function AdminMoney() {
         </>
       ) : null}
       <View style={{ height: 20 }} />
+      <BackstageCard />
+      <View style={{ height: 20 }} />
       <GiftsCard />
     </Page>
   );
 }
 
 /** Live-premiere gifts: names and prices viewers see on the web. */
+/** Backstage: one pass for every actor. Each fan's money is split by what they watched (or who replied). */
+function BackstageCard() {
+  const months = [0, 1, 2, 3].map((n) => {
+    const d = new Date();
+    d.setUTCDate(1);
+    d.setUTCMonth(d.getUTCMonth() - n);
+    return d.toISOString().slice(0, 7) + '-01';
+  });
+  const [month, setMonth] = useState(months[0]!);
+  const data = usePassMonth(month);
+  const msgs = useMessageMonth(month);
+  const pay = useAdminAction(markActorPaid);
+  const finalize = useAdminAction(async () => finalizePassMonth(month));
+  const m = data.data;
+  const current = month === months[0];
+  return (
+    <Card
+      title="Backstage"
+      right={
+        <View style={[s.row, { gap: 6 }]}>
+          {months.map((x) => (
+            <Pressable key={x} onPress={() => setMonth(x)} style={[s.btn, month === x && { borderColor: colors.gold, backgroundColor: '#3A2A0E' }]}>
+              <Text style={[s.btnText, month === x && { color: colors.goldLight }]}>{x.slice(0, 7)}</Text>
+            </Pressable>
+          ))}
+        </View>
+      }
+    >
+      {data.isPending ? <Loading /> : null}
+      {m ? (
+        <>
+          <Text style={s.small}>
+            {`${count(m.passes)} active passes (${count(m.dm_passes)} with messages) · ${money(m.gross_cents)} paid in · ${money(m.net_cents)} after fees and tax · 80% to actors · `}
+            {m.finalized ? 'Final.' : current ? 'Live estimate; final on the 3rd of next month.' : 'Not finalized yet.'}
+          </Text>
+          {!m.finalized && !current ? (
+            <View style={{ marginTop: 8 }}>
+              <Btn
+                label="Finalize this month"
+                kind="primary"
+                busy={finalize.isPending}
+                onPress={() => {
+                  if (globalThis.confirm?.(`Lock the Backstage split for ${month.slice(0, 7)}?`)) finalize.mutate(undefined as never);
+                }}
+              />
+            </View>
+          ) : null}
+          {m.rows.length ? (
+            <>
+              <Tr head flex={[1.4, 1, 1, 1, 1, 1.4]} cells={['Actor', 'Fans', 'Views', 'Their share', 'Unpaid', '']} />
+              {m.rows.map((x) => (
+                <Tr
+                  key={x.actor_id}
+                  flex={[1.4, 1, 1, 1, 1, 1.4]}
+                  cells={[
+                    x.handle ? `@${x.handle}` : '(deleted)',
+                    count(x.fans),
+                    count(x.views),
+                    money(x.cents),
+                    m.finalized ? (x.unpaid_cents ? money(x.unpaid_cents) : <Pill key="p" text="Paid" tone="muted" />) : '—',
+                    m.finalized && x.unpaid_cents ? (
+                      <Btn
+                        key="b"
+                        label="Mark paid"
+                        kind="primary"
+                        busy={pay.isPending && pay.variables?.actor === x.actor_id}
+                        onPress={() => {
+                          if (globalThis.confirm?.(`Mark ${money(x.unpaid_cents ?? 0)} paid to @${x.handle} for ${month.slice(0, 7)}?`))
+                            pay.mutate({ actor: x.actor_id, month });
+                        }}
+                      />
+                    ) : (
+                      ''
+                    ),
+                  ]}
+                />
+              ))}
+            </>
+          ) : (
+            <Text style={[s.small, { marginTop: 8 }]}>No Backstage earnings this month yet.</Text>
+          )}
+        </>
+      ) : null}
+      <Text style={[s.th, { marginTop: 18 }]}>Messages add-ons</Text>
+      {(msgs.data ?? []).length ? (
+        <>
+          <Tr head flex={[1.4, 1, 1, 1, 1, 1.4]} cells={['Actor', 'Fans', 'Paid in', 'Their share', 'Unpaid', '']} />
+          {(msgs.data ?? []).map((x) => (
+            <Tr
+              key={x.actor_id}
+              flex={[1.4, 1, 1, 1, 1, 1.4]}
+              cells={[
+                x.handle ? `@${x.handle}` : '(deleted)',
+                count(x.fans),
+                money(x.gross_cents),
+                money(x.cents),
+                x.unpaid_cents ? money(x.unpaid_cents) : <Pill key="p" text="Paid" tone="muted" />,
+                x.unpaid_cents ? (
+                  <Btn
+                    key="b"
+                    label="Mark paid"
+                    kind="primary"
+                    onPress={() => {
+                      if (globalThis.confirm?.(`Mark ${money(x.unpaid_cents ?? 0)} of messages paid to @${x.handle} for ${month.slice(0, 7)}?`))
+                        pay.mutate({ actor: x.actor_id, month });
+                    }}
+                  />
+                ) : (
+                  ''
+                ),
+              ]}
+            />
+          ))}
+        </>
+      ) : (
+        <Text style={[s.small, { marginTop: 6 }]}>No messages add-ons this month.</Text>
+      )}
+      <ErrorText error={data.error ?? msgs.error ?? pay.error ?? finalize.error} />
+    </Card>
+  );
+}
+
 function GiftsCard() {
   const gifts = useAdminGifts();
   return (

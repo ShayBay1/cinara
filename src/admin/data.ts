@@ -109,6 +109,9 @@ export interface Person {
   email: string;
   is_cast: boolean;
   is_admin: boolean;
+  /** Confirmed real actor (gold seal). */
+  verified?: boolean;
+  verified_note?: string | null;
   member: boolean;
   banned?: boolean;
   ban_reason?: string | null;
@@ -153,10 +156,12 @@ export interface Report {
   reason: string;
   created_at: string;
   status: 'open' | 'resolved' | 'dismissed';
-  kind: 'comment' | 'chat' | 'user';
+  kind: 'comment' | 'chat' | 'user' | 'post' | 'post_comment' | 'room' | 'dm' | 'channel_reply';
   reporter: string | null;
   comment_id: string | null;
   chat_message_id: string | null;
+  /** The post, post comment, fan-room message or DM for social reports. */
+  target_id: string | null;
   body: string | null;
   hidden: boolean | null;
   author_id: string | null;
@@ -331,6 +336,11 @@ export const closeQuarter = async (quarter: string) => {
   await must(sb().rpc('admin_close_quarter', { p_quarter: quarter }));
 };
 
+/** Verify an actor (also marks them cast). The note records how you checked, e.g. "ID + call, Oct 29". */
+export const setVerified = async (args: { profile: string; verified: boolean; note?: string }) => {
+  await must(sb().rpc('admin_set_verified', { p_profile: args.profile, p_verified: args.verified, p_note: args.note ?? null }));
+};
+
 export const setCast = async (args: { profile: string; isCast: boolean }) => {
   await must(sb().rpc('admin_set_cast', { p_profile: args.profile, p_is_cast: args.isCast }));
 };
@@ -345,6 +355,55 @@ export const hideChat = async (args: { message: string; hidden: boolean }) => {
 
 export const banUser = async (args: { profile: string; banned: boolean; reason?: string }) => {
   await must(sb().rpc('admin_ban', { p_profile: args.profile, p_banned: args.banned, p_reason: args.reason ?? null }));
+};
+
+/** Hides (or shows again) a post, a post comment or a fan-room message. DMs are private: ban instead. */
+export const hideSocial = async (args: { kind: 'post' | 'post_comment' | 'room' | 'channel_reply'; id: string; hidden: boolean }) => {
+  await must(sb().rpc('admin_hide_social', { p_kind: args.kind, p_id: args.id, p_hidden: args.hidden }));
+};
+
+export interface ActorPayoutRow {
+  actor_id: string;
+  handle: string | null;
+  month: string;
+  gross_cents: number;
+  actor_share_cents: number;
+  unpaid_cents: number | null;
+  subscribers: number;
+}
+export const useActorPayouts = () =>
+  useQuery({
+    queryKey: ['admin', 'actor-payouts'],
+    queryFn: async () => ((await must(sb().rpc('admin_actor_payouts'))) as ActorPayoutRow[] | null) ?? [],
+  });
+export const markActorPaid = async (args: { actor: string; month: string }) => {
+  await must(sb().rpc('admin_mark_sub_payout', { p_actor: args.actor, p_month: args.month }));
+};
+
+export interface PassMonth {
+  month: string;
+  finalized: boolean;
+  passes: number;
+  dm_passes: number;
+  gross_cents: number;
+  net_cents: number;
+  rows: Array<{ actor_id: string; handle: string | null; cents: number; fans: number; views: number; unpaid_cents: number | null }>;
+}
+/** Backstage for one month: live estimate until it's finalized (automatically on the 3rd). */
+export const usePassMonth = (month: string) =>
+  useQuery({
+    queryKey: ['admin', 'pass-month', month],
+    queryFn: async () => (await must(sb().rpc('admin_pass_month', { p_month: month }))) as PassMonth,
+  });
+export interface MessageMonthRow { actor_id: string; handle: string | null; fans: number; gross_cents: number; cents: number; unpaid_cents: number | null }
+/** Messages add-ons for one month (each actor's own fans; 80% to them). */
+export const useMessageMonth = (month: string) =>
+  useQuery({
+    queryKey: ['admin', 'message-month', month],
+    queryFn: async () => ((await must(sb().rpc('admin_message_month', { p_month: month }))) as MessageMonthRow[] | null) ?? [],
+  });
+export const finalizePassMonth = async (month: string) => {
+  await must(sb().rpc('admin_finalize_pass_month', { p_month: month }));
 };
 
 export const resolveReport = async (args: { id: number; status: 'open' | 'resolved' | 'dismissed' }) => {

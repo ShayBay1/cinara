@@ -30,6 +30,7 @@ import { BorderChrome } from '@/components/player/BorderChrome';
 import { TurnStage } from '@/components/player/TurnStage';
 import { Reel } from '@/components/Reel';
 import { Button, IconButton, T } from '@/components/ui';
+import { Verified } from '@/components/Verified';
 import {
   api,
   FREE_EPISODES,
@@ -585,6 +586,7 @@ function Live({
           key={m.id}
           name={m.author.handle}
           tag={m.author.isCast ? 'CAST' : undefined}
+          verified={m.author.verified}
           me={m.author.id === 'me'}
           gift={m.kind === 'gift'}
           body={
@@ -908,6 +910,7 @@ function ChatLine({
   name,
   body,
   tag,
+  verified,
   me,
   gift,
   fade = 1,
@@ -916,6 +919,7 @@ function ChatLine({
   name: string;
   body: string;
   tag?: string;
+  verified?: boolean;
   me?: boolean;
   gift?: boolean;
   fade?: number;
@@ -940,7 +944,8 @@ function ChatLine({
         >
           {name}
         </T>
-        {tag ? (
+        {verified ? <Verified size={12} /> : null}
+        {tag && !verified ? (
           <View style={styles.castTag}>
             <T
               style={{

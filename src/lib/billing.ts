@@ -25,3 +25,16 @@ export function formatPrice(cents: number): string {
 
 /** Membership price shown in the app. Keep in sync with the Stripe price on the website. */
 export const MEMBERSHIP_PRICE_LABEL = '$14.99';
+
+/**
+ * Where Backstage sign-up buttons may appear: always on the web; in the native apps only when the
+ * external purchase link is switched on (see .env.example). They open the website, never in-app purchase.
+ */
+export const canOfferBackstage = canSellHere || showExternalJoinLink;
+
+/** The website page that sells Backstage (optionally starting from one actor's page). */
+export const backstageUrl = (handle?: string, tier?: 'creators' | 'creators_dm') =>
+  `${WEB_URL}${handle ? `/actor/${encodeURIComponent(handle)}` : '/backstage'}${tier === 'creators_dm' ? '?tier=creators_dm' : ''}`;
+
+/** The website section that sells messages with one actor. */
+export const messagesUrl = (handle: string) => `${WEB_URL}/actor/${encodeURIComponent(handle)}?section=messages`;

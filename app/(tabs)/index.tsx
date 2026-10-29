@@ -43,7 +43,8 @@ export default function FeedScreen() {
   const entrance = useSharedValue(phase === 'done' ? 1 : 0);
   useEffect(() => {
     if (phase === 'arriving') {
-      entrance.value = withTiming(1, { duration: 1700, easing: Easing.out(Easing.cubic) });
+      // Starts as the window opens (1.05 s) and settles as the chord rings out (~3.6 s).
+      entrance.value = withTiming(1, { duration: 2600, easing: Easing.out(Easing.cubic) });
     }
     if (phase === 'done' && entrance.value === 0) entrance.value = 1;
   }, [phase, entrance]);

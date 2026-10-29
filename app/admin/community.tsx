@@ -7,6 +7,7 @@ import {
   banUser,
   hideChat,
   hideComment,
+  hideSocial,
   rejectPhoto,
   removeBlockedWord,
   resolveReport,
@@ -18,6 +19,17 @@ import {
   type Report,
 } from '@/admin/data';
 import { Btn, Card, ErrorText, Field, Loading, Page, Pill, s, Tr } from '@/admin/ui';
+
+const KIND_LABEL: Record<Report['kind'], string> = {
+  comment: 'Comment',
+  chat: 'Live chat',
+  user: 'Person',
+  post: 'Post',
+  post_comment: 'Post comment',
+  room: 'Fan room',
+  dm: 'Message',
+  channel_reply: 'Channel reply',
+};
 
 const confirmWeb = (q: string) => Boolean(globalThis.confirm?.(q));
 
@@ -31,6 +43,8 @@ export default function AdminCommunity() {
   const hide = useAdminAction(async (r: Report) => {
     if (r.comment_id) await hideComment({ comment: r.comment_id, hidden: !r.hidden });
     else if (r.chat_message_id) await hideChat({ message: r.chat_message_id, hidden: !r.hidden });
+    else if (r.target_id && (r.kind === 'post' || r.kind === 'post_comment' || r.kind === 'room' || r.kind === 'channel_reply'))
+      await hideSocial({ kind: r.kind, id: r.target_id, hidden: !r.hidden });
   });
   const ban = useAdminAction(async (r: Report) => {
     if (!r.author_id) return;
@@ -65,7 +79,7 @@ export default function AdminCommunity() {
                 flex={[1.1, 0.9, 3.2, 1.3, 1.2, 1, 3.2]}
                 cells={[
                   new Date(r.created_at).toLocaleDateString(),
-                  r.kind === 'comment' ? 'Comment' : r.kind === 'chat' ? 'Chat' : 'Person',
+                  KIND_LABEL[r.kind],
                   r.kind === 'user' ? '(reported the person)' : r.body ?? '(deleted)',
                   <View key="by" style={{ gap: 4 }}>
                     <Text style={s.body}>{r.author ? `@${r.author}` : '—'}</Text>
@@ -74,7 +88,7 @@ export default function AdminCommunity() {
                   r.reason.replace(/_/g, ' '),
                   <Pill key="st" text={r.status} tone={r.status === 'open' ? 'warn' : 'muted'} />,
                   <View key="a" style={[s.row, { gap: 6 }]}>
-                    {r.kind !== 'user' && r.body ? (
+                    {r.kind !== 'user' && r.kind !== 'dm' && r.body ? (
                       <Btn label={r.hidden ? 'Show again' : 'Hide'} kind={r.hidden ? 'plain' : 'danger'} onPress={() => hide.mutate(r)} />
                     ) : null}
                     {r.author_id ? <Btn label={r.author_banned ? 'Unban' : 'Ban'} kind={r.author_banned ? 'plain' : 'danger'} onPress={() => ban.mutate(r)} /> : null}

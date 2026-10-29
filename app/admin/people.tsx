@@ -7,6 +7,7 @@ import {
   saveDeal,
   setAdmin,
   setCast,
+  setVerified,
   useAdminAction,
   useAdminShows,
   useDeals,
@@ -22,6 +23,7 @@ export default function AdminPeople() {
   const shows = useAdminShows();
   const deals = useDeals();
   const cast = useAdminAction(async (a: { profile: string; isCast: boolean }) => setCast(a));
+  const verify = useAdminAction(setVerified);
   const ban = useAdminAction(async (a: { profile: string; handle: string; banned: boolean }) => {
     if (a.banned && !globalThis.confirm?.(`Ban @${a.handle}? They can't comment or chat, and their posts are hidden.`)) return;
     await banUser({ profile: a.profile, banned: a.banned, reason: 'admin' });
@@ -119,12 +121,28 @@ export default function AdminPeople() {
               p.email,
               <View key="r" style={s.row}>
                 {p.is_admin ? <Pill text="Admin" tone="gold" /> : null}
+                {p.verified ? <Pill text="Verified" tone="gold" /> : null}
                 {p.is_cast ? <Pill text="Cast" tone="good" /> : null}
                 {p.member ? <Pill text="Member" /> : null}
                 {p.banned ? <Pill text="Banned" tone="live" /> : null}
               </View>,
               <View key="a" style={s.row}>
                 <Btn label={personId === p.id ? 'Chosen' : 'Choose'} kind={personId === p.id ? 'primary' : 'plain'} onPress={() => setPersonId(p.id)} />
+                <Btn
+                  label={p.verified ? 'Unverify' : 'Verify'}
+                  kind={p.verified ? 'plain' : 'primary'}
+                  onPress={() => {
+                    if (p.verified) {
+                      if (globalThis.confirm?.(`Remove @${p.handle}'s verified seal? They'll drop out of Backstage until verified again.`))
+                        verify.mutate({ profile: p.id, verified: false });
+                      return;
+                    }
+                    const note = globalThis.prompt?.(
+                      `Verify @${p.handle} as the real actor?\n\nHow did you confirm it? (e.g. "ID + video call", "signed talent deal", "posted from their verified Instagram")`,
+                    );
+                    if (note && note.trim()) verify.mutate({ profile: p.id, verified: true, note });
+                  }}
+                />
                 <Btn label={p.is_cast ? 'Not cast' : 'Mark cast'} onPress={() => cast.mutate({ profile: p.id, isCast: !p.is_cast })} />
                 <Btn label={p.is_admin ? 'Remove admin' : 'Make admin'} onPress={() => admin.mutate({ profile: p.id, handle: p.handle, isAdmin: !p.is_admin })} />
                 <Btn label={p.banned ? 'Unban' : 'Ban'} kind={p.banned ? 'plain' : 'danger'} onPress={() => ban.mutate({ profile: p.id, handle: p.handle, banned: !p.banned })} />
@@ -132,7 +150,7 @@ export default function AdminPeople() {
             ]}
           />
         ))}
-        <ErrorText error={people.error ?? cast.error ?? ban.error ?? admin.error} />
+        <ErrorText error={people.error ?? cast.error ?? verify.error ?? ban.error ?? admin.error} />
       </Card>
 
       <View style={{ height: 20 }} />

@@ -11,7 +11,9 @@ import { createClient } from "npm:@supabase/supabase-js@2";
 // customer.subscription.updated, customer.subscription.deleted, invoice.paid, charge.refunded.
 //
 // Checkout sessions must carry: client_reference_id = the Cinara user id; for gifts,
-// metadata { kind: "gift", show_id, gift_id, gift_to, recipient_id? } (recipient_id empty = the whole cast).
+// metadata { kind: "gift", show_id, gift_id, gift_to, recipient_id? } (recipient_id empty = the whole cast);
+// for fans subscribing to an actor, subscription metadata { kind: "actor_sub", fan_id, actor_id };
+// for Backstage passes, subscription metadata { kind: "creator_pass", tier, user_id }.
 // Deploy with verify_jwt = false (Stripe signs its own requests).
 
 const stripe = new Stripe(Deno.env.get("STRIPE_SECRET_KEY")!, {
@@ -46,7 +48,56 @@ function feeOf(charge: Stripe.Charge | string | null | undefined): number {
   return bt && typeof bt !== "string" ? bt.fee : 0;
 }
 
+/** Fans' subscriptions to actors share Stripe with memberships; they're marked with metadata.kind. */
+const ACTOR_SHARE = 0.8; // the actor keeps 80% of what's left after card fees and tax
+const isActorSub = (sub: Stripe.Subscription | null | undefined) => sub?.metadata?.kind === "actor_sub";
+/** Backstage: one pass for every actor ($4.99), or with messages ($19.99). Split monthly by views. */
+const isPass = (sub: Stripe.Subscription | null | undefined) => sub?.metadata?.kind === "creator_pass";
+const passTier = (sub: Stripe.Subscription) => (sub.metadata?.tier === "creators_dm" ? "creators_dm" : "creators");
+
+async function syncPass(sub: Stripe.Subscription) {
+  const customer = typeof sub.customer === "string" ? sub.customer : sub.customer.id;
+  const status = sub.status === "active" || sub.status === "trialing" ? "active"
+    : sub.status === "past_due" || sub.status === "unpaid" ? "past_due"
+    : sub.status === "canceled" ? "canceled" : "inactive";
+  const user = sub.metadata.user_id;
+  if (!user) throw new Error(`Backstage subscription ${sub.id} has no user_id`);
+  // A fan only ever has one pass; an older canceled one doesn't overwrite a newer live one.
+  const { data: existing } = await db.from("creator_passes").select("stripe_subscription_id, status").eq("user_id", user).maybeSingle();
+  if (existing && existing.stripe_subscription_id !== sub.id && existing.status === "active" && status !== "active") return;
+  const { error } = await db.from("creator_passes").upsert({
+    user_id: user,
+    tier: passTier(sub),
+    status,
+    stripe_subscription_id: sub.id,
+    stripe_customer_id: customer,
+    price_cents: sub.items.data[0]?.price?.unit_amount ?? null,
+    current_period_end: new Date(sub.current_period_end * 1000).toISOString(),
+    updated_at: new Date().toISOString(),
+  }, { onConflict: "user_id" });
+  if (error) throw new Error(error.message);
+}
+
+async function syncActorSubscription(sub: Stripe.Subscription) {
+  const customer = typeof sub.customer === "string" ? sub.customer : sub.customer.id;
+  const status = sub.status === "active" || sub.status === "trialing" ? "active"
+    : sub.status === "past_due" || sub.status === "unpaid" ? "past_due"
+    : sub.status === "canceled" ? "canceled" : "inactive";
+  const { error } = await db.from("actor_subscriptions").upsert({
+    fan_id: sub.metadata.fan_id,
+    actor_id: sub.metadata.actor_id,
+    stripe_subscription_id: sub.id,
+    stripe_customer_id: customer,
+    status,
+    price_cents: sub.items.data[0]?.price?.unit_amount ?? null,
+    current_period_end: new Date(sub.current_period_end * 1000).toISOString(),
+  }, { onConflict: "fan_id,actor_id" });
+  if (error && (error as { code?: string }).code !== "23503") throw new Error(error.message);
+}
+
 async function syncSubscription(sub: Stripe.Subscription, userId?: string | null) {
+  if (isActorSub(sub)) return syncActorSubscription(sub);
+  if (isPass(sub)) return syncPass(sub);
   const customer = typeof sub.customer === "string" ? sub.customer : sub.customer.id;
   const user = userId ?? (sub.metadata?.user_id || null) ?? (await userForCustomer(customer));
   if (!user) throw new Error(`No Cinara user for customer ${customer}`);
@@ -103,6 +154,36 @@ async function onInvoicePaid(inv: Stripe.Invoice) {
   // Re-read with the pinned API version: newer webhook payloads move invoice.subscription/charge/tax.
   const full = await stripe.invoices.retrieve(inv.id!, { expand: ["charge.balance_transaction"] });
   if (!full.subscription || full.amount_paid <= 0) return;
+  const sub = await stripe.subscriptions.retrieve(typeof full.subscription === "string" ? full.subscription : full.subscription.id);
+  if (isPass(sub)) {
+    const periodStartP = full.lines.data[0]?.period?.start ?? full.period_start;
+    await must(db.from("pass_payments").upsert({
+      source: full.id,
+      user_id: sub.metadata.user_id,
+      tier: passTier(sub),
+      gross_cents: full.amount_paid,
+      fee_cents: feeOf(full.charge as Stripe.Charge),
+      tax_cents: full.tax ?? 0,
+      month: monthOf(periodStartP),
+    }, { onConflict: "source", ignoreDuplicates: true }));
+    return;
+  }
+  if (isActorSub(sub)) {
+    const fee = feeOf(full.charge as Stripe.Charge);
+    const tax = full.tax ?? 0;
+    const periodStartA = full.lines.data[0]?.period?.start ?? full.period_start;
+    await must(db.from("actor_sub_payments").upsert({
+      source: full.id,
+      fan_id: sub.metadata.fan_id,
+      actor_id: sub.metadata.actor_id,
+      gross_cents: full.amount_paid,
+      fee_cents: fee,
+      tax_cents: tax,
+      actor_share_cents: Math.round((full.amount_paid - fee - tax) * ACTOR_SHARE),
+      month: monthOf(periodStartA),
+    }, { onConflict: "source", ignoreDuplicates: true }));
+    return;
+  }
   const customer = typeof full.customer === "string" ? full.customer : full.customer?.id;
   const user = await userForCustomer(customer);
   if (!user) throw new Error(`No Cinara user for customer ${customer}`); // Stripe retries; fix the row, it lands
@@ -136,6 +217,46 @@ async function onChargeRefunded(ch: Stripe.Charge) {
   // A membership: each refund is a negative ledger line (tax refunded in proportion; Stripe keeps its fee).
   const inv = charge.invoice as Stripe.Invoice | null;
   if (!inv || typeof inv === "string") return;
+
+  // A fan's actor subscription: refunds come off the actor's share.
+  if (inv.subscription) {
+    const sub = await stripe.subscriptions.retrieve(typeof inv.subscription === "string" ? inv.subscription : inv.subscription.id);
+    if (isPass(sub)) {
+      const periodStartP = inv.lines.data[0]?.period?.start ?? inv.period_start;
+      for (const r of refunds) {
+        if (r.status !== "succeeded") continue;
+        const taxPart = inv.amount_paid > 0 ? Math.round(((inv.tax ?? 0) * r.amount) / inv.amount_paid) : 0;
+        await must(db.from("pass_payments").upsert({
+          source: r.id,
+          user_id: sub.metadata.user_id,
+          tier: passTier(sub),
+          gross_cents: -r.amount,
+          fee_cents: 0,
+          tax_cents: -taxPart,
+          month: monthOf(periodStartP),
+        }, { onConflict: "source", ignoreDuplicates: true }));
+      }
+      return;
+    }
+    if (isActorSub(sub)) {
+      const periodStartA = inv.lines.data[0]?.period?.start ?? inv.period_start;
+      for (const r of refunds) {
+        if (r.status !== "succeeded") continue;
+        const taxPart = inv.amount_paid > 0 ? Math.round(((inv.tax ?? 0) * r.amount) / inv.amount_paid) : 0;
+        await must(db.from("actor_sub_payments").upsert({
+          source: r.id,
+          fan_id: sub.metadata.fan_id,
+          actor_id: sub.metadata.actor_id,
+          gross_cents: -r.amount,
+          fee_cents: 0,
+          tax_cents: -taxPart,
+          actor_share_cents: -Math.round((r.amount - taxPart) * ACTOR_SHARE),
+          month: monthOf(periodStartA),
+        }, { onConflict: "source", ignoreDuplicates: true }));
+      }
+      return;
+    }
+  }
   const customer = typeof inv.customer === "string" ? inv.customer : inv.customer?.id;
   const user = await userForCustomer(customer);
   const periodStart = inv.lines.data[0]?.period?.start ?? inv.period_start;

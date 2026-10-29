@@ -98,7 +98,8 @@ export default function TabsLayout() {
           },
         }}
       />
-      <Tabs.Screen name="friends" options={tab('Friends', 'friends')} />
+      {/* Social: actors' posts, fan rooms and messages. Friends open from its header. */}
+      <Tabs.Screen name="social" options={tab('Social', 'friends')} />
       <Tabs.Screen
         name="profile"
         options={{
@@ -111,6 +112,7 @@ export default function TabsLayout() {
       />
       {/* The premiere calendar opens from Home now. */}
       <Tabs.Screen name="schedule" options={{ href: null }} />
+      <Tabs.Screen name="friends" options={{ href: null }} />
     </Tabs>
   );
 }

@@ -7,6 +7,7 @@ import { useState } from 'react';
 import { Alert, Platform, Pressable, ScrollView, StyleSheet, View } from 'react-native';
 
 import { Develop } from '@/components/Develop';
+import { BackstageStatusRow } from '@/social/Join';
 import { Icon } from '@/components/Icon';
 import { Pressy } from '@/components/Pressy';
 import { Reel } from '@/components/Reel';
@@ -177,6 +178,22 @@ export default function ProfileScreen() {
       </View>
 
       {earnings.data ? <ShareCard earnings={earnings.data} /> : null}
+
+      <View style={styles.section}>
+        <BackstageStatusRow />
+      </View>
+
+      {me.data?.isCast ? (
+        <View style={[styles.section, { flexDirection: 'row', gap: 8 }]}>
+          <Button
+            compact
+            label="My social page"
+            onPress={() => router.push({ pathname: '/actor/[handle]', params: { handle: me.data!.handle } })}
+            style={{ flex: 1 }}
+          />
+          <Button compact kind="outline" label="Creator settings" onPress={() => router.push('/creator')} style={{ flex: 1 }} />
+        </View>
+      ) : null}
 
       <View style={styles.section}>
         <View style={styles.headRow}>

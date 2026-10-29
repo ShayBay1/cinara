@@ -59,6 +59,8 @@ export interface UserSummary {
   handle: string;
   avatarUrl?: string | null;
   isCast?: boolean;
+  /** Confirmed by Cinara to be the real actor (the gold seal). */
+  verified?: boolean;
 }
 
 export interface Comment {

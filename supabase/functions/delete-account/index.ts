@@ -51,6 +51,31 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Their subscriptions to actors, too.
+    const { data: subs } = await db.from("actor_subscriptions")
+      .select("stripe_subscription_id").eq("fan_id", user.id).neq("status", "canceled");
+    for (const sub of subs ?? []) {
+      if (!sub.stripe_subscription_id) continue;
+      if (!stripe) throw new Error("STRIPE_SECRET_KEY missing; can't cancel the subscription");
+      try {
+        await stripe.subscriptions.cancel(sub.stripe_subscription_id);
+      } catch (e) {
+        if ((e as { code?: string }).code !== "resource_missing") throw e;
+      }
+    }
+    await db.from("actor_subscriptions").delete().eq("fan_id", user.id);
+    const { data: pass } = await db.from("creator_passes")
+      .select("stripe_subscription_id, status").eq("user_id", user.id).maybeSingle();
+    if (pass?.stripe_subscription_id && pass.status !== "canceled") {
+      if (!stripe) throw new Error("STRIPE_SECRET_KEY missing; can't cancel the subscription");
+      try {
+        await stripe.subscriptions.cancel(pass.stripe_subscription_id);
+      } catch (e) {
+        if ((e as { code?: string }).code !== "resource_missing") throw e;
+      }
+    }
+    await db.from("creator_passes").delete().eq("user_id", user.id);
+
     // 2. Their photos, approved and waiting for review.
     for (const bucket of ["avatars", "avatars-pending"]) {
       const { data: files } = await db.storage.from(bucket).list(user.id, { limit: 1000 });

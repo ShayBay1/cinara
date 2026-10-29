@@ -1,4 +1,5 @@
 import * as Clipboard from 'expo-clipboard';
+import { router } from 'expo-router';
 import { useState } from 'react';
 import { Alert, Platform, Share, StyleSheet, TextInput, View } from 'react-native';
 
@@ -63,7 +64,18 @@ export default function FriendsScreen() {
 
   return (
     <Screen
-      title="Friends"
+      title={
+        <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4, marginLeft: -10 }}>
+          <IconButton
+            icon="back"
+            label="Back"
+            onPress={() => (router.canGoBack() ? router.back() : router.replace('/social'))}
+          />
+          <T variant="display" style={{ fontSize: 30, lineHeight: 34, textTransform: 'none' }}>
+            Friends
+          </T>
+        </View>
+      }
       subtitle="Watch together, even apart."
       refreshing={friends.isRefetching}
       onRefresh={() => {
