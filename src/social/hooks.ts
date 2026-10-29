@@ -2,9 +2,10 @@ import { useMutation, useQuery, useQueryClient, type QueryClient } from '@tansta
 import { useCallback, useEffect, useMemo, useRef } from 'react';
 import { create } from 'zustand';
 
+import { recordImpressions } from './analytics';
 import * as social from './api';
 import type { ActorCard, ActorProfile, Pass, Post } from './api';
-import { DEMO_CREATORS, demoComments, demoPosts, demoProfile, isDemoId, showDemo } from './demo';
+import { DEMO_CREATORS, demoComments, demoPeople, demoPosts, demoProfile, isDemoId, showDemo } from './demo';
 
 export const sk = {
   feed: (scope: Scope) => ['social', 'feed', scope] as const,
@@ -120,6 +121,25 @@ export function useActors() {
   return { ...q, data, isPending: live ? q.isPending : false };
 }
 
+/** People search: real accounts first, sample creators mixed in while testing. */
+export function useSearchPeople(query: string) {
+  const follows = useDemo((st) => st.follows);
+  const q = useQuery({
+    queryKey: ['social', 'people', query.trim().toLowerCase()],
+    queryFn: () => social.searchPeople(query),
+    enabled: live,
+    staleTime: 15_000,
+    placeholderData: (prev) => prev,
+  });
+  const data = useMemo(() => {
+    const real = q.data ?? [];
+    if (live && q.isPending) return undefined;
+    const demo = __DEV__ || !real.length ? demoPeople(query).map((p) => (follows[p.id] === undefined ? p : { ...p, following: !!follows[p.id] })) : [];
+    return [...real, ...demo.filter((d) => !real.some((r) => r.handle === d.handle))];
+  }, [q.data, q.isPending, query, follows]);
+  return { ...q, data, isPending: live ? q.isPending : false };
+}
+
 export const useRooms = () => useQuery({ queryKey: sk.rooms, queryFn: social.rooms, enabled: live, staleTime: 30_000 });
 export const useRoomMessages = (showId: string) =>
   useQuery({ queryKey: sk.room(showId), queryFn: () => social.roomMessages(showId), enabled: live && !!showId });
@@ -186,6 +206,7 @@ export function useFollow(handle: string) {
 export function useRecordViews(meId?: string | null) {
   const pass = useMyPass();
   const seen = useRef(new Set<string>());
+  const shown = useRef(new Set<string>());
   const queue = useRef<string[]>([]);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => () => {
@@ -193,7 +214,15 @@ export function useRecordViews(meId?: string | null) {
   }, []);
   return useCallback(
     (posts: Post[]) => {
-      if (!live || !pass.data?.active) return;
+      if (!live) return;
+      // Impressions (every real post that was on screen) feed creators' "Accounts reached".
+      const fresh = posts.filter((p) => !p.demo && p.author.id !== meId && !shown.current.has(p.id));
+      if (fresh.length && meId) {
+        fresh.forEach((p) => shown.current.add(p.id));
+        const ids = fresh.map((p) => p.id);
+        void recordImpressions(ids).catch(() => ids.forEach((i) => shown.current.delete(i)));
+      }
+      if (!pass.data?.active) return;
       for (const p of posts) {
         if (p.demo || p.locked || p.visibility !== 'subscribers' || p.author.id === meId || seen.current.has(p.id)) continue;
         seen.current.add(p.id);

@@ -21,6 +21,7 @@ import { deletePost, type Post } from '@/social/api';
 import { BackstageFeed } from '@/social/Backstage';
 import { JoinBackstage } from '@/social/Join';
 import { useActors, useFeed, useRecordViews, useUnreadDms } from '@/social/hooks';
+import { useUnreadNotifications } from '@/social/notifications';
 import { CreatorRing, Empty, PostCard } from '@/social/ui';
 import { colors, fonts } from '@/theme/tokens';
 
@@ -40,6 +41,7 @@ export default function SocialScreen() {
   const signedIn = !!me.data?.id;
   const unread = useUnreadDms(signedIn);
   const requests = useFriendRequests();
+  const notes = { notifications: useUnreadNotifications(signedIn).data ?? 0 };
   const pager = useRef<{ scrollTo: (o: { x: number; animated?: boolean }) => void } | null>(null);
   const x = useRef(new Animated.Value(width)).current;
   const [index, setIndex] = useState(1);
@@ -64,10 +66,21 @@ export default function SocialScreen() {
         <T style={{ fontFamily: fonts.display, fontSize: 24, letterSpacing: 1, color: colors.goldLight }}>Social</T>
         <View style={{ flexDirection: 'row', alignItems: 'center' }}>
           <JoinBackstage variant="pill" style={{ marginRight: 4 }} />
+          <IconButton icon="search" label="Search actors and people" onPress={() => router.push('/people')} />
           {me.data?.isCast ? <IconButton icon="plus" label="New post" onPress={() => router.push('/post/new')} /> : null}
           <View>
-            <IconButton icon="friends" label="Friends" onPress={() => router.push('/friends')} />
-            {(requests.data?.length ?? 0) > 0 ? <View style={styles.dot} /> : null}
+            <IconButton
+              icon="heart"
+              label={notes.notifications ? `Activity, ${notes.notifications} new` : 'Activity'}
+              onPress={() => router.push(signedIn ? '/activity' : '/sign-in')}
+            />
+            {notes.notifications ? (
+              <View style={styles.badge}>
+                <T style={styles.badgeText}>{notes.notifications > 9 ? '9+' : notes.notifications}</T>
+              </View>
+            ) : (requests.data?.length ?? 0) > 0 ? (
+              <View style={styles.dot} />
+            ) : null}
           </View>
           <View>
             <IconButton

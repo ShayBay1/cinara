@@ -25,7 +25,8 @@ import { useLaunch } from '@/store/launch';
 import { useMe } from '@/hooks/queries';
 import { lockUpright } from '@/lib/orientationLock';
 import { useScreenProtection } from '@/lib/screenProtection';
-import { pullProgress, startProgressSync } from '@/lib/sync';
+import { pullProgress, registerForPush, startProgressSync } from '@/lib/sync';
+import { useTimeManagement } from '@/store/wellbeing';
 import { colors } from '@/theme/tokens';
 
 void SplashScreen.preventAutoHideAsync();
@@ -120,6 +121,13 @@ export default function RootLayout() {
           <Stack.Screen name="messages/[threadId]" options={{ animation: 'slide_from_right' }} />
           <Stack.Screen name="creator" options={{ animation: 'slide_from_right' }} />
           <Stack.Screen name="backstage" options={{ presentation: 'modal' }} />
+          <Stack.Screen name="people" options={{ animation: 'fade' }} />
+          <Stack.Screen name="activity" options={{ animation: 'slide_from_right' }} />
+          <Stack.Screen name="notification-settings" options={{ animation: 'slide_from_right' }} />
+          <Stack.Screen name="edit-profile" options={{ animation: 'slide_from_right' }} />
+          <Stack.Screen name="time-management" options={{ animation: 'slide_from_right' }} />
+          <Stack.Screen name="your-activity" options={{ animation: 'slide_from_right' }} />
+          <Stack.Screen name="analytics" options={{ animation: 'slide_from_right' }} />
           <Stack.Screen name="channel/[handle]/index" options={{ animation: 'slide_from_right' }} />
           <Stack.Screen name="channel/[handle]/[messageId]" options={{ presentation: 'modal' }} />
           <Stack.Screen name="admin" />
@@ -150,7 +158,10 @@ function AccountSync() {
   }, []);
   useEffect(() => {
     if (me.data?.id) void pullProgress();
+    // Signed in: this phone gets pushes for likes, comments, follows, messages and premieres.
+    if (me.data?.id) void registerForPush();
   }, [me.data?.id]);
+  useTimeManagement();
   return null;
 }
 

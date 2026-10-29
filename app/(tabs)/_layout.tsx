@@ -11,6 +11,8 @@ import { haptic } from '@/lib/haptics';
 import { useNow } from '@/hooks/useNow';
 import { soonestPremiere } from '@/lib/premieres';
 import { syncPremiereActivity, syncTonightWidget } from '@/lib/widgetSync';
+import { useUnreadDms } from '@/social/hooks';
+import { useNotificationBadges } from '@/social/notifications';
 import { colors, fonts } from '@/theme/tokens';
 
 /** The Profile tab is just your picture (like Instagram): no icon, no label, a thin ring when you're on it. */
@@ -44,6 +46,10 @@ const tab = (title: string, icon: IconName) => ({
 export default function TabsLayout() {
   const shows = useShows();
   const reminders = useAppStore((s) => s.reminders);
+  const me = useMe();
+  const dms = useUnreadDms(!!me.data?.id);
+  // Unread notifications + messages: the Social tab badge and the app icon badge.
+  const badges = useNotificationBadges(me.data?.id, dms.data ?? 0);
   // Home-screen widget and Dynamic Island countdown (iPhone builds only). Re-synced each minute,
   // whichever tab is open.
   const minute = Math.floor(useNow(60_000).getTime() / 60_000);
@@ -99,7 +105,14 @@ export default function TabsLayout() {
         }}
       />
       {/* Social: actors' posts, fan rooms and messages. Friends open from its header. */}
-      <Tabs.Screen name="social" options={tab('Social', 'friends')} />
+      <Tabs.Screen
+        name="social"
+        options={{
+          ...tab('Social', 'friends'),
+          tabBarBadge: badges.total ? (badges.total > 9 ? '9+' : badges.total) : undefined,
+          tabBarBadgeStyle: { backgroundColor: colors.live, color: '#fff', fontFamily: fonts.bodyHeavy, fontSize: 10 },
+        }}
+      />
       <Tabs.Screen
         name="profile"
         options={{

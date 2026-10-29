@@ -68,8 +68,27 @@ export interface ActorProfile {
   dmPriceCents: number;
   premiumPosts: number;
   isMe: boolean;
+  /** How you're connected: friends, a request either way, or none. */
+  relation: Relation;
+  friends: number;
   demo?: boolean;
   shows: Array<{ id: string; title: string; role: string | null }>;
+}
+
+export type Relation = 'me' | 'friends' | 'requested' | 'incoming' | 'none';
+/** One person in search: an actor (follow them) or a fan (add them as a friend). */
+export interface PersonResult {
+  id: string;
+  handle: string;
+  displayName: string | null;
+  avatarUrl: string | null;
+  isCast: boolean;
+  verified: boolean;
+  followers: number;
+  following: boolean;
+  relation: Relation;
+  role: string | null;
+  demo?: boolean;
 }
 export interface ActorCard {
   id: string;
@@ -300,6 +319,8 @@ export async function actorProfile(handle: string): Promise<ActorProfile | null>
     dmPriceCents: Number(r.dm_price_cents ?? r.sub_price_cents ?? 999),
     premiumPosts: Number(r.premium_posts ?? 0),
     isMe: Boolean(r.is_me),
+    relation: ((r.relation as Relation) ?? 'none'),
+    friends: Number(r.friends ?? 0),
     shows: (r.shows as ActorProfile['shows']) ?? [],
   };
 }
@@ -416,6 +437,32 @@ export async function creatorStats(): Promise<CreatorStats> {
     thisMonthCents: Number(r.this_month_cents ?? 0),
     unpaidCents: Number(r.unpaid_cents ?? 0),
   };
+}
+
+/* ---------- People ---------- */
+
+export async function searchPeople(query: string): Promise<PersonResult[]> {
+  const rows = await rpc<Row[]>('search_people', { p_query: query });
+  return rows.map((r) => ({
+    id: r.id as string,
+    handle: r.handle as string,
+    displayName: (r.display_name as string | null) ?? null,
+    avatarUrl: (r.avatar_url as string | null) ?? null,
+    isCast: Boolean(r.is_cast),
+    verified: Boolean(r.verified),
+    followers: Number(r.followers ?? 0),
+    following: Boolean(r.following),
+    relation: (r.relation as Relation) ?? 'none',
+    role: (r.role as string | null) ?? null,
+  }));
+}
+
+/** Friend request by username (asking someone who already asked you makes you friends). */
+export async function addFriend(handle: string) {
+  await rpc('send_friend_request', { p_handle: handle });
+}
+export async function cancelFriendRequest(userId: string) {
+  await rpc('cancel_friend_request', { p_to: userId });
 }
 
 /* ---------- Fan rooms ---------- */

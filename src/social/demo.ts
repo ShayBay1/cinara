@@ -119,6 +119,8 @@ export function demoProfile(handle: string, hasPass: boolean, dmAccess: boolean)
     canMessage: dmAccess && !!c.dmsOpen,
     dmPriceCents: 999,
     isMe: false,
+    relation: 'none',
+    friends: 0,
     shows: c.roles.map((r) => ({ id: r.showId, title: r.title, role: r.role })),
     demo: true,
   };
@@ -148,3 +150,21 @@ export function demoComments(postId: string): PostComment[] {
 
 /** Show sample content? Always in development builds; in the live app only while nobody has posted yet. */
 export const showDemo = (realCount: number) => __DEV__ || realCount === 0;
+
+/** Sample creators that match a search (or all of them for the empty search). */
+export function demoPeople(query: string) {
+  const q = query.trim().replace(/^@/, '').toLowerCase();
+  return DEMO_CREATORS.filter((c) => !q || c.handle.includes(q) || (c.displayName ?? '').toLowerCase().includes(q)).map((c) => ({
+    id: c.id,
+    handle: c.handle,
+    displayName: c.displayName,
+    avatarUrl: null,
+    isCast: true,
+    verified: true,
+    followers: c.followers,
+    following: c.following,
+    relation: 'none' as const,
+    role: c.roles[0]?.title ?? null,
+    demo: true,
+  }));
+}

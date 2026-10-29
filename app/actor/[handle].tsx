@@ -21,11 +21,13 @@ import { Verified } from '@/components/Verified';
 import { useMe } from '@/hooks/queries';
 import { haptic } from '@/lib/haptics';
 import { notify } from '@/lib/safety';
-import { openDm, type Post } from '@/social/api';
+import { addFriend, cancelFriendRequest, openDm, type ActorProfile, type Post } from '@/social/api';
 import { BackstageHero } from '@/social/Backstage';
 import { canOfferBackstage } from '@/lib/billing';
 import { JoinBackstage, MessagesCard, openJoin } from '@/social/Join';
 import { sk, useActor, useFollow, usePostsBy } from '@/social/hooks';
+import { recordProfileVisit } from '@/social/analytics';
+import { getPostNotifications, setPostNotifications } from '@/social/notifications';
 import { CreatorRing } from '@/social/ui';
 import { colors, fonts, radius } from '@/theme/tokens';
 
@@ -64,6 +66,11 @@ export default function ActorScreen() {
     }, 2500);
     return () => clearInterval(id);
   }, [justPaid, qc]);
+
+  // Counts toward the actor's "Profile visits" (once a day; your own page doesn't count).
+  useEffect(() => {
+    if (a?.id && !a.demo && !a.isMe && me.data?.id) void recordProfileVisit(a.id).catch(() => undefined);
+  }, [a?.id, a?.demo, a?.isMe, me.data?.id]);
 
   const back = () => (router.canGoBack() ? router.back() : router.replace('/social'));
   const split = useMemo(() => {
@@ -139,9 +146,15 @@ export default function ActorScreen() {
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 18, marginTop: 6 }}>
           <CreatorRing handle={a.handle} url={a.avatarUrl} size={92} gold={a.premiumPosts > 0} />
           <View style={{ flexDirection: 'row', flex: 1, justifyContent: 'space-around' }}>
-            <Stat n={a.posts} label={a.posts === 1 ? 'post' : 'posts'} />
-            <Stat n={a.followers} label={a.followers === 1 ? 'follower' : 'followers'} />
-            <Stat n={a.premiumPosts} label="backstage" gold />
+            {a.isCast ? (
+              <>
+                <Stat n={a.posts} label={a.posts === 1 ? 'post' : 'posts'} />
+                <Stat n={a.followers} label={a.followers === 1 ? 'follower' : 'followers'} />
+                <Stat n={a.premiumPosts} label="backstage" gold />
+              </>
+            ) : (
+              <Stat n={a.friends} label={a.friends === 1 ? 'friend' : 'friends'} />
+            )}
           </View>
         </View>
 
@@ -171,10 +184,15 @@ export default function ActorScreen() {
         </View>
 
         <View style={{ flexDirection: 'row', gap: 8, marginTop: 14 }}>
-          {a.isMe ? (
+          {a.isMe && !a.isCast ? (
+            <Button compact kind="outline" label="Edit profile" onPress={() => router.push('/edit-profile')} style={{ flex: 1 }} />
+          ) : !a.isCast ? (
+            <FriendButton person={a} onChanged={() => void actor.refetch()} />
+          ) : a.isMe ? (
             <>
               <Button compact label="New post" icon="plus" onPress={() => router.push('/post/new')} style={{ flex: 1 }} />
-              <Button compact kind="outline" label="Creator settings" onPress={() => router.push('/creator')} style={{ flex: 1 }} />
+              <Button compact kind="outline" label="Dashboard" onPress={() => router.push('/analytics')} style={{ flex: 1 }} />
+              <Button compact kind="outline" label="Edit profile" onPress={() => router.push('/edit-profile')} style={{ flex: 1 }} />
             </>
           ) : (
             <>
@@ -185,6 +203,7 @@ export default function ActorScreen() {
                 onPress={() => (signedIn || a.demo ? follow.mutate({ actorId: a.id, on: !a.following }) : needSignIn())}
                 style={{ flex: 1 }}
               />
+              {a.following && !a.demo && signedIn ? <PostBell actorId={a.id} name={name} /> : null}
               {a.canMessage ? (
                 <Button compact kind="outline" icon="send" label="Message" loading={busy} onPress={message} style={{ flex: 1 }} />
               ) : a.dmsOpen && a.verified && canOfferBackstage ? (
@@ -227,6 +246,8 @@ export default function ActorScreen() {
         ) : null}
       </View>
 
+      {a.isCast ? (
+      <>
       <View style={[styles.tabs, { width: pageW, alignSelf: 'center' }]}>
         {(['posts', 'backstage'] as const).map((t) => (
           <Pressable
@@ -271,7 +292,46 @@ export default function ActorScreen() {
           }
         />
       )}
+      </>
+      ) : (
+        <T variant="caption" style={{ textAlign: 'center', paddingVertical: 28, paddingHorizontal: 24 }}>
+          {a.isMe ? 'This is your profile. Friends can see what you’re watching.' : a.relation === 'friends' ? `You and ${a.handle} are friends.` : 'Add them as a friend to watch together.'}
+        </T>
+      )}
     </ScrollView>
+  );
+}
+
+/** Fans connect as friends (actors are followed instead). */
+function FriendButton({ person, onChanged }: { person: ActorProfile; onChanged: () => void }) {
+  const qc = useQueryClient();
+  const [busy, setBusy] = useState(false);
+  const r = person.relation;
+  if (r === 'friends')
+    return <Button compact kind="outline" icon="check" label="Friends" disabled style={{ flex: 1, opacity: 1 }} />;
+  const go = async () => {
+    setBusy(true);
+    try {
+      if (r === 'requested') await cancelFriendRequest(person.id);
+      else await addFriend(person.handle);
+      void qc.invalidateQueries({ queryKey: ['friend-requests'] });
+      void qc.invalidateQueries({ queryKey: ['friends'] });
+      onChanged();
+    } catch (e) {
+      notify(e instanceof Error ? e.message : 'Something went wrong.');
+    } finally {
+      setBusy(false);
+    }
+  };
+  return (
+    <Button
+      compact
+      kind={r === 'requested' ? 'outline' : 'primary'}
+      label={r === 'requested' ? 'Requested' : r === 'incoming' ? 'Accept friend request' : 'Add friend'}
+      loading={busy}
+      onPress={() => void go()}
+      style={{ flex: 1 }}
+    />
   );
 }
 
@@ -373,4 +433,40 @@ const styles = StyleSheet.create({
     borderRadius: radius.sm,
     overflow: 'hidden',
   },
+});
+
+/** The bell next to Following: get a notification whenever this actor posts (Instagram's post notifications). */
+function PostBell({ actorId, name }: { actorId: string; name: string }) {
+  const [on, setOn] = useState<boolean | null>(null);
+  useEffect(() => {
+    let alive = true;
+    void getPostNotifications(actorId)
+      .then((v) => alive && setOn(v ?? true))
+      .catch(() => alive && setOn(true));
+    return () => {
+      alive = false;
+    };
+  }, [actorId]);
+  const toggle = () => {
+    const next = !on;
+    setOn(next);
+    void setPostNotifications(actorId, next).catch(() => setOn(!next));
+    notify(next ? `You’ll be notified when ${name} posts.` : `Post notifications from ${name} are off.`);
+  };
+  return (
+    <Pressable
+      onPress={toggle}
+      accessibilityRole="switch"
+      accessibilityState={{ checked: !!on }}
+      accessibilityLabel={`Post notifications from ${name}`}
+      style={({ pressed }) => [bell.btn, on && bell.on, pressed && { opacity: 0.6 }]}
+    >
+      <Icon name="bell" size={18} color={on ? colors.goldInk : colors.text} />
+    </Pressable>
+  );
+}
+
+const bell = StyleSheet.create({
+  btn: { width: 40, height: 40, borderRadius: 20, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
+  on: { backgroundColor: colors.gold, borderColor: colors.gold },
 });

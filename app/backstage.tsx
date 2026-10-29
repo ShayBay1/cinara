@@ -49,12 +49,14 @@ export default function JoinScreen() {
     if (canSellHere) {
       setBusy(true);
       if (messages && a) await startMessages(a.id, `/actor/${a.handle}`);
-      else await startBackstage('creators', a ? `/actor/${a.handle}` : '/social?tab=backstage', qc);
+      else await startBackstage('creators', a && !a.demo ? `/actor/${a.handle}` : '/social?tab=backstage', qc);
       setBusy(false);
       return;
     }
     // Phone apps: Apple requires these to open in Safari, not inside the app.
-    await Linking.openURL(messages && a ? messagesUrl(a.handle) : backstageUrl(a?.handle));
+    // Sample creators only exist in the app, so send those to the general Backstage page.
+    const real = a && !a.demo ? a : null;
+    await Linking.openURL(messages && real ? messagesUrl(real.handle) : backstageUrl(real?.handle));
   };
 
   const done = messages ? !!a?.canMessage : !!pass.data?.active;
@@ -143,7 +145,11 @@ export default function JoinScreen() {
       </ScrollView>
 
       <View style={[styles.footer, { paddingBottom: insets.bottom + 12 }]}>
-        {canOfferBackstage ? (
+        {messages && a?.demo ? (
+          <T variant="caption" style={{ textAlign: 'center', fontSize: 14 }}>
+            {`${nameOf(a)} is a sample creator for testing, so messages can’t be bought. With a real verified actor, this button opens their messages checkout.`}
+          </T>
+        ) : canOfferBackstage ? (
           <>
             <Button
               label={!me.data?.id ? 'Sign in to continue' : canSellHere ? `Continue · ${price}/month` : `Continue on cinaratv.com · ${price}/mo`}
