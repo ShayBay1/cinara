@@ -46,7 +46,7 @@ export default function YourActivityScreen() {
         <>
           <View style={{ gap: 2 }}>
             <T variant="caption">Time watched</T>
-            <T style={{ fontFamily: fonts.serif, fontSize: 44, lineHeight: 48, color: colors.text }}>{hoursLabel(a.watchSeconds)}</T>
+            <T style={{ fontFamily: fonts.serif, fontSize: 44, lineHeight: 52, color: colors.text }}>{hoursLabel(a.watchSeconds)}</T>
             <T variant="caption">{`Daily average: ${hoursLabel(a.watchSeconds / days)} · Time in the app: ${minutesLabel(Math.round(appMinutes))}`}</T>
           </View>
           <Bars values={a.daily.map((d) => d.seconds)} labels={labels} />

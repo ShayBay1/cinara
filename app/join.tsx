@@ -61,7 +61,7 @@ export default function JoinScreen() {
               style={{
                 fontFamily: fonts.display,
                 fontSize: 40,
-                lineHeight: 44,
+                lineHeight: 50,
                 color: colors.gold,
               }}
             >

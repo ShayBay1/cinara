@@ -154,13 +154,13 @@ export default function FeedScreen() {
             feel="tap"
           >
             <View style={styles.liveDot} />
-            <Text style={styles.liveText}>LIVE</Text>
+            <Text maxFontSizeMultiplier={1.4} style={styles.liveText}>LIVE</Text>
           </Pressy>
         ) : (
           <View style={styles.leftSlot} />
         )}
         <View style={styles.tabLabel}>
-          <Text style={styles.forYou}>For You</Text>
+          <Text maxFontSizeMultiplier={1.4} style={styles.forYou}>For You</Text>
           <View style={styles.underline} />
         </View>
         <Pressy
@@ -182,7 +182,7 @@ const styles = StyleSheet.create({
     position: 'absolute',
     left: 0,
     right: 0,
-    height: 44,
+    minHeight: 44,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',

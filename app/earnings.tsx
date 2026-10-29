@@ -293,7 +293,7 @@ const styles = StyleSheet.create({
     borderColor: colors.gold,
     experimental_backgroundImage: 'linear-gradient(135deg, #3A2A0E 0%, #1E1710 65%)',
   },
-  heroAmount: { fontFamily: fonts.serifItalic, fontSize: 54, lineHeight: 62, color: colors.gold },
+  heroAmount: { fontFamily: fonts.serifItalic, fontSize: 54, lineHeight: 64, color: colors.gold },
   heroSplit: { flexDirection: 'row', alignItems: 'center', gap: 14 },
   vRule: { width: StyleSheet.hairlineWidth, alignSelf: 'stretch', backgroundColor: colors.line },
   card: {
@@ -303,7 +303,7 @@ const styles = StyleSheet.create({
     borderColor: colors.line,
   },
   showTitle: { fontFamily: fonts.engraved, fontSize: 15, lineHeight: 20, color: colors.goldLight, letterSpacing: 0.6 },
-  lineAmount: { fontFamily: fonts.serifItalic, fontSize: 28, lineHeight: 32, color: colors.gold },
+  lineAmount: { fontFamily: fonts.serifItalic, fontSize: 28, lineHeight: 34, color: colors.gold },
   grid: { flexDirection: 'row', flexWrap: 'wrap', rowGap: 12 },
   stat: { width: '50%', gap: 2 },
   rule: { height: StyleSheet.hairlineWidth, backgroundColor: colors.line },

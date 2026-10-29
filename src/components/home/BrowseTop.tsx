@@ -25,7 +25,7 @@ export function BrowseHeader() {
     <View style={[styles.header, { paddingTop: insets.top + 4 }]} pointerEvents="box-none">
       <Fade stops={[[0, 0.75], [1, 0]]} color={colors.ink} />
       <View style={styles.headRow}>
-        <Text style={styles.logo}>Cinara.</Text>
+        <Text maxFontSizeMultiplier={1.4} style={styles.logo}>Cinara.</Text>
         <Pressy accessibilityRole="button" accessibilityLabel="Search" onPress={() => router.push('/search')} scaleTo={0.9}>
           <Icon name="search" size={22} color={colors.text} />
         </Pressy>
@@ -40,7 +40,7 @@ export function BrowseHeader() {
 function Chip({ label, onPress }: { label: string; onPress: () => void }) {
   return (
     <Pressy accessibilityRole="button" accessibilityLabel={label} onPress={onPress} style={styles.chip}>
-      <Text style={styles.chipText}>{label}</Text>
+      <Text maxFontSizeMultiplier={1.4} style={styles.chipText}>{label}</Text>
     </Pressy>
   );
 }
@@ -58,14 +58,14 @@ export function BrowseHero({ show, now }: { show: Show; now: Date }) {
       {src ? <Image source={src} style={StyleSheet.absoluteFill} contentFit="cover" contentPosition="top" /> : null}
       <Fade stops={[[0, 0.15], [0.35, 0], [0.62, 0.35], [1, 1]]} color={colors.ink} />
       <View style={styles.heroInner}>
-        <Text style={styles.eyebrow}>
+        <Text maxFontSizeMultiplier={1.4} style={styles.eyebrow}>
           No. {show.number}
           {premiere ? ` · New episodes ${dayLabel(premiere.at, now)} ${SLOT_LABEL}` : ''}
         </Text>
-        <Text style={styles.heroTitle} numberOfLines={2}>
+        <Text maxFontSizeMultiplier={1.4} style={styles.heroTitle} numberOfLines={2}>
           {show.title}
         </Text>
-        <Text style={styles.tagline} numberOfLines={2}>
+        <Text maxFontSizeMultiplier={1.4} style={styles.tagline} numberOfLines={2}>
           {show.tagline}
         </Text>
         <View style={styles.heroBtns}>
@@ -77,7 +77,7 @@ export function BrowseHero({ show, now }: { show: Show; now: Date }) {
             style={[styles.btn, { backgroundColor: colors.gold }]}
           >
             <Icon name="play" size={15} color={colors.goldInk} />
-            <Text style={[styles.btnText, { color: colors.goldInk }]}>{ep > 1 ? `Play Ep ${ep}` : 'Play'}</Text>
+            <Text maxFontSizeMultiplier={1.4} style={[styles.btnText, { color: colors.goldInk }]}>{ep > 1 ? `Play Ep ${ep}` : 'Play'}</Text>
           </Pressy>
           <Pressy
             accessibilityRole="button"
@@ -87,7 +87,7 @@ export function BrowseHero({ show, now }: { show: Show; now: Date }) {
           >
             <Glass radius={999} style={StyleSheet.absoluteFill} />
             <Icon name={reminder.isOn ? 'check' : 'bell'} size={16} color={reminder.isOn ? colors.gold : colors.text} />
-            <Text style={styles.btnText}>{reminder.isOn ? 'Reminded' : 'Remind me'}</Text>
+            <Text maxFontSizeMultiplier={1.4} style={styles.btnText}>{reminder.isOn ? 'Reminded' : 'Remind me'}</Text>
           </Pressy>
         </View>
       </View>
@@ -117,10 +117,10 @@ export function Poster({
       <Fade stops={[[0.45, 0], [1, 0.88]]} />
       {badge ? (
         <View style={styles.pBadge}>
-          <Text style={styles.pBadgeText}>{badge}</Text>
+          <Text maxFontSizeMultiplier={1.4} style={styles.pBadgeText}>{badge}</Text>
         </View>
       ) : null}
-      <Text style={styles.pTitle} numberOfLines={2}>
+      <Text maxFontSizeMultiplier={1.4} style={styles.pTitle} numberOfLines={2}>
         {show.title}
       </Text>
     </Pressy>
@@ -130,7 +130,7 @@ export function Poster({
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <View style={{ paddingTop: 26 }}>
-      <Text style={styles.rowLabel}>{label}</Text>
+      <Text maxFontSizeMultiplier={1.4} style={styles.rowLabel}>{label}</Text>
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
@@ -167,7 +167,7 @@ export function TopRow({ shows }: { shows: Show[] }) {
     <Row label="Top on Cinara">
       {ranked.map((s, i) => (
         <View key={s.id} style={styles.topItem}>
-          <Text style={styles.topNum}>{i + 1}</Text>
+          <Text maxFontSizeMultiplier={1.4} style={styles.topNum}>{i + 1}</Text>
           <Poster show={s} />
         </View>
       ))}
@@ -200,14 +200,14 @@ const styles = StyleSheet.create({
     marginBottom: 8,
     textAlign: 'center',
   },
-  heroTitle: { fontFamily: fonts.serifItalic, fontSize: 46, lineHeight: 46, color: colors.text, textAlign: 'center' },
+  heroTitle: { fontFamily: fonts.serifItalic, fontSize: 46, lineHeight: 55, color: colors.text, textAlign: 'center' },
   tagline: { fontFamily: fonts.body, fontSize: 13, lineHeight: 18, color: colors.textSoft, textAlign: 'center', marginTop: 8 },
   heroBtns: { flexDirection: 'row', gap: 10, marginTop: 16 },
   btn: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 7,
-    height: 44,
+    minHeight: 44,
     paddingHorizontal: 20,
     borderRadius: 999,
     overflow: 'hidden',
@@ -240,14 +240,14 @@ const styles = StyleSheet.create({
     bottom: 8,
     fontFamily: fonts.serifItalic,
     fontSize: 17,
-    lineHeight: 18,
+    lineHeight: 21,
     color: colors.text,
   },
   topItem: { flexDirection: 'row', alignItems: 'flex-end' },
   topNum: {
     fontFamily: fonts.serifItalic,
     fontSize: 104,
-    lineHeight: 104,
+    lineHeight: 123,
     color: colors.gold,
     marginRight: -12,
     zIndex: 1,

@@ -966,7 +966,7 @@ function ChatLine({
           {
             fontFamily: fonts.bodyBold,
             fontSize: 14,
-            lineHeight: 18,
+            lineHeight: 19,
             color: gift ? colors.gold : '#FFFFFF',
           },
         ]}
@@ -1208,7 +1208,7 @@ const styles = StyleSheet.create({
   clockNum: {
     fontFamily: fonts.bodyHeavy,
     fontSize: 34,
-    lineHeight: 38,
+    lineHeight: 45,
     color: colors.text,
     fontVariant: ['tabular-nums'],
     textAlign: 'center',
@@ -1224,7 +1224,7 @@ const styles = StyleSheet.create({
   lobbyInitial: {
     fontFamily: fonts.serif,
     fontSize: 24,
-    lineHeight: 28,
+    lineHeight: 29,
     color: colors.text,
     textAlign: 'center',
     includeFontPadding: false,
@@ -1247,7 +1247,7 @@ const styles = StyleSheet.create({
   },
   head: { position: 'absolute', flexDirection: 'row', alignItems: 'center', gap: 8 },
   liveBadge: {
-    height: 22,
+    minHeight: 22,
     paddingHorizontal: 8,
     borderRadius: 6,
     backgroundColor: '#E5484D',
@@ -1275,7 +1275,7 @@ const styles = StyleSheet.create({
   },
   inputRow: { position: 'absolute' },
   input: {
-    height: 44,
+    minHeight: 44,
     borderRadius: radius.pill,
     borderWidth: 1,
     borderColor: 'rgba(243,234,216,0.22)',
@@ -1307,7 +1307,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(21,16,11,0.32)',
   },
   chatPill: {
-    height: 32,
+    minHeight: 32,
     paddingHorizontal: 12,
     borderRadius: radius.pill,
     alignItems: 'center',

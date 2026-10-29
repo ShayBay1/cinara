@@ -71,7 +71,7 @@ export const shortDay = (iso: string) => new Date(`${iso}T12:00:00`).toLocaleDat
 
 const st = StyleSheet.create({
   periods: { flexDirection: 'row', gap: 8 },
-  period: { paddingHorizontal: 14, height: 34, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.line, justifyContent: 'center' },
+  period: { paddingHorizontal: 14, minHeight: 34, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.line, justifyContent: 'center' },
   periodOn: { backgroundColor: colors.gold, borderColor: colors.gold },
   periodText: { fontFamily: fonts.bodyBold, fontSize: 13, color: colors.text },
   grid: { flexDirection: 'row', flexWrap: 'wrap', gap: 10 },

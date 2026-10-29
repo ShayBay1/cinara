@@ -154,7 +154,7 @@ export default function ChannelScreen() {
               </View>
             ))}
           </View>
-          <T style={{ fontFamily: fonts.serif, fontSize: 24, lineHeight: 28, color: colors.text }}>
+          <T style={{ fontFamily: fonts.serif, fontSize: 24, lineHeight: 29, color: colors.text }}>
             {`${nameOf(a)}’s channel is for Backstage members.`}
           </T>
           <BackstageHero handle={a.handle} />

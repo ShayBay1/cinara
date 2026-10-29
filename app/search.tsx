@@ -243,7 +243,7 @@ const styles = StyleSheet.create({
   bar: { flexDirection: 'row', alignItems: 'center', gap: 8, paddingHorizontal: 16 },
   field: {
     flex: 1,
-    height: 46,
+    minHeight: 46,
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
@@ -255,7 +255,7 @@ const styles = StyleSheet.create({
   },
   // outlineWidth 0: no square browser focus ring inside the rounded field.
   input: { flex: 1, height: 46, color: colors.text, fontFamily: fonts.body, fontSize: 16, outlineWidth: 0 },
-  cancel: { height: 46, paddingHorizontal: 6, justifyContent: 'center' },
+  cancel: { minHeight: 46, paddingHorizontal: 6, justifyContent: 'center' },
   headRow: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center' },
   h2: {
     fontFamily: fonts.engraved,
@@ -266,7 +266,7 @@ const styles = StyleSheet.create({
   },
   recent: { flexDirection: 'row', alignItems: 'center', gap: 10, minHeight: 44 },
   chip: {
-    height: 40,
+    minHeight: 40,
     paddingHorizontal: 16,
     borderRadius: radius.pill,
     borderWidth: 1,

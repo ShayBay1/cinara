@@ -370,7 +370,7 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(243,234,216,0.25)',
   },
   chip: {
-    height: 40,
+    minHeight: 40,
     paddingHorizontal: 16,
     borderRadius: radius.pill,
     borderWidth: 1,

@@ -81,26 +81,26 @@ export function ShowCard({
       <Animated.View style={[styles.info, words]} pointerEvents="box-none">
         {isLive ? (
           <View style={[styles.badge, { backgroundColor: colors.live }]}>
-            <Text style={[styles.badgeText, { color: '#fff' }]}>LIVE NOW · NEW EPISODES</Text>
+            <Text maxFontSizeMultiplier={1.4} style={[styles.badgeText, { color: '#fff' }]}>LIVE NOW · NEW EPISODES</Text>
           </View>
         ) : showCountdown && premiere ? (
           <View style={styles.badge}>
-            <Text style={styles.badgeText}>
+            <Text maxFontSizeMultiplier={1.4} style={styles.badgeText}>
               NEW EPISODES {dayLabel(premiere.at, now).toUpperCase()} · {SLOT_LABEL}
             </Text>
           </View>
         ) : null}
-        <Text style={styles.eyebrow}>
+        <Text maxFontSizeMultiplier={1.4} style={styles.eyebrow}>
           No. {show.number} · {show.genre}
         </Text>
-        <Text style={styles.title} numberOfLines={2}>
+        <Text maxFontSizeMultiplier={1.4} style={styles.title} numberOfLines={2}>
           {show.title}
         </Text>
-        <Text style={styles.ep} numberOfLines={1}>
+        <Text maxFontSizeMultiplier={1.4} style={styles.ep} numberOfLines={1}>
           Episode {ep}
           {epTitle ? ` · ${epTitle}` : ''}
         </Text>
-        <Text style={styles.tag} numberOfLines={2}>
+        <Text maxFontSizeMultiplier={1.4} style={styles.tag} numberOfLines={2}>
           {show.tagline}
         </Text>
 
@@ -214,15 +214,15 @@ export function ComingSoonCard({
       <Fade stops={SHADE} />
       <View style={styles.info} pointerEvents="box-none">
         <View style={styles.badge}>
-          <Text style={styles.badgeText}>COMING SOON{soon.arrives ? ` · ${soon.arrives.toUpperCase()}` : ''}</Text>
+          <Text maxFontSizeMultiplier={1.4} style={styles.badgeText}>COMING SOON{soon.arrives ? ` · ${soon.arrives.toUpperCase()}` : ''}</Text>
         </View>
-        <Text style={styles.eyebrow}>Next on Cinara</Text>
-        <Text style={styles.title} numberOfLines={2}>
+        <Text maxFontSizeMultiplier={1.4} style={styles.eyebrow}>Next on Cinara</Text>
+        <Text maxFontSizeMultiplier={1.4} style={styles.title} numberOfLines={2}>
           {soon.title ?? 'A new show'}
         </Text>
-        {soon.starring ? <Text style={styles.ep}>{soon.starring}</Text> : null}
+        {soon.starring ? <Text maxFontSizeMultiplier={1.4} style={styles.ep}>{soon.starring}</Text> : null}
         {soon.teaser ? (
-          <Text style={styles.tag} numberOfLines={3}>
+          <Text maxFontSizeMultiplier={1.4} style={styles.tag} numberOfLines={3}>
             {soon.teaser}
           </Text>
         ) : null}
@@ -242,8 +242,8 @@ function Countdown({ ms }: { ms: number }) {
       {cells.map(([n, l]) => (
         <View key={String(l)} style={styles.cell}>
           <Glass radius={12} style={StyleSheet.absoluteFill} />
-          <Text style={styles.cellNum}>{n}</Text>
-          <Text style={styles.cellLabel}>{l}</Text>
+          <Text maxFontSizeMultiplier={1.4} style={styles.cellNum}>{n}</Text>
+          <Text maxFontSizeMultiplier={1.4} style={styles.cellLabel}>{l}</Text>
         </View>
       ))}
     </View>
@@ -274,7 +274,7 @@ function Pill({
     >
       {ghost ? <Glass radius={999} style={StyleSheet.absoluteFill} /> : null}
       {ghost ? null : <Icon name="play" size={14} color={live ? '#fff' : colors.goldInk} />}
-      <Text style={[styles.pillText, { color: ghost || live ? colors.text : colors.goldInk }]}>
+      <Text maxFontSizeMultiplier={1.4} style={[styles.pillText, { color: ghost || live ? colors.text : colors.goldInk }]}>
         {capitalize(label)}
       </Text>
     </Pressy>
@@ -295,7 +295,7 @@ function RailButton({
   return (
     <Pressy accessibilityRole="button" accessibilityLabel={label} onPress={onPress} style={styles.railBtn} scaleTo={0.88}>
       <Icon name={icon} size={30} color={on ? colors.gold : colors.text} />
-      <Text style={styles.railLabel}>{label}</Text>
+      <Text maxFontSizeMultiplier={1.4} style={styles.railLabel}>{label}</Text>
     </Pressy>
   );
 }
@@ -322,7 +322,7 @@ const styles = StyleSheet.create({
     marginBottom: 6,
     ...shadow,
   },
-  title: { fontFamily: fonts.serifItalic, fontSize: 38, lineHeight: 40, color: colors.text, marginBottom: 6, ...shadow },
+  title: { fontFamily: fonts.serifItalic, fontSize: 38, lineHeight: 45, color: colors.text, marginBottom: 6, ...shadow },
   ep: { fontFamily: fonts.bodyBold, fontSize: 13, color: colors.textSoft, marginBottom: 6, ...shadow },
   tag: { fontFamily: fonts.body, fontSize: 13, lineHeight: 18, color: colors.textSoft, marginBottom: 14, ...shadow },
   ctas: { flexDirection: 'row', gap: 8 },
@@ -331,14 +331,14 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     gap: 7,
     paddingHorizontal: 16,
-    height: 42,
+    minHeight: 42,
     borderRadius: 999,
     overflow: 'hidden',
   },
   pillText: { fontFamily: fonts.bodyHeavy, fontSize: 14 },
   count: { flexDirection: 'row', gap: 8, marginBottom: 14 },
   cell: { minWidth: 58, paddingVertical: 7, borderRadius: 12, alignItems: 'center', overflow: 'hidden' },
-  cellNum: { fontFamily: fonts.serifItalic, fontSize: 26, lineHeight: 28, color: colors.text },
+  cellNum: { fontFamily: fonts.serifItalic, fontSize: 26, lineHeight: 31, color: colors.text },
   cellLabel: { fontFamily: fonts.engraved, fontSize: 8, letterSpacing: 1.5, color: colors.muted },
   rail: { position: 'absolute', right: 8, bottom: FEED_BOTTOM + 6, alignItems: 'center', gap: 16 },
   avaRing: { borderWidth: 2, borderColor: colors.text, borderRadius: 25, padding: 1, marginBottom: 4 },

@@ -42,7 +42,7 @@ export function BackstageHero({ handle }: { back?: string; handle?: string }) {
           </View>
         ) : null}
       </View>
-      <T style={{ fontFamily: fonts.serif, fontSize: 30, lineHeight: 34, color: colors.goldInk }}>
+      <T style={{ fontFamily: fonts.serif, fontSize: 30, lineHeight: 36, color: colors.goldInk }}>
         {p?.active ? 'Everything is unlocked.' : 'One pass. Every actor.'}
       </T>
       {!p?.active ? (

@@ -172,7 +172,7 @@ export default function JoinScreen() {
 
 const styles = StyleSheet.create({
   fill: { flex: 1, backgroundColor: colors.ink },
-  title: { fontFamily: fonts.serif, fontSize: 30, lineHeight: 34, color: colors.text },
+  title: { fontFamily: fonts.serif, fontSize: 30, lineHeight: 36, color: colors.text },
   plan: { borderRadius: radius.lg, borderWidth: 1.5, borderColor: colors.gold, backgroundColor: '#2A1F0E', padding: 16 },
   footer: { paddingHorizontal: 16, paddingTop: 12, gap: 8, borderTopWidth: 1, borderTopColor: colors.line, backgroundColor: colors.ink },
 });

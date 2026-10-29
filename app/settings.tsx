@@ -362,7 +362,7 @@ const styles = StyleSheet.create({
   linkRow: { minHeight: 52, flexDirection: 'row', alignItems: 'center', gap: 10, paddingVertical: 8 },
   linkLabel: { color: colors.text, fontSize: 15, fontWeight: '600' },
   field: {
-    height: 46,
+    minHeight: 46,
     borderRadius: radius.pill,
     borderWidth: 1,
     borderColor: colors.line,

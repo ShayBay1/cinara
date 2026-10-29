@@ -376,7 +376,7 @@ const styles = StyleSheet.create({
   },
   input: {
     flex: 1,
-    height: 46,
+    minHeight: 46,
     borderRadius: radius.pill,
     borderWidth: 1,
     borderColor: '#3A2E20',

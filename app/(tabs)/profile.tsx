@@ -411,7 +411,7 @@ const styles = StyleSheet.create({
     borderColor: colors.line,
     backgroundColor: colors.surface,
   },
-  shareAmount: { fontFamily: fonts.serifItalic, fontSize: 34, lineHeight: 40, color: colors.gold },
+  shareAmount: { fontFamily: fonts.serifItalic, fontSize: 34, lineHeight: 41, color: colors.gold },
   memberLine: { fontFamily: fonts.serifItalic, fontSize: 19, lineHeight: 24, color: colors.text },
   section: { paddingTop: 28 },
   headRow: {

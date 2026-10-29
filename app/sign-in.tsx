@@ -136,7 +136,7 @@ export default function SignInScreen() {
 const styles = StyleSheet.create({
   fill: { flex: 1, backgroundColor: colors.ink, padding: 20, gap: 14 },
   input: {
-    height: 52,
+    minHeight: 52,
     borderRadius: radius.md,
     borderWidth: 1,
     borderColor: '#3A2E20',

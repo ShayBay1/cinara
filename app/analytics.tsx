@@ -124,9 +124,9 @@ const Row = ({ label, value }: { label: string; value: string }) => (
 );
 
 const st = StyleSheet.create({
-  big: { fontFamily: fonts.serif, fontSize: 44, lineHeight: 48, color: colors.text },
+  big: { fontFamily: fonts.serif, fontSize: 44, lineHeight: 52, color: colors.text },
   chart: { gap: 14, padding: 14, borderRadius: radius.md, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.line },
-  chip: { paddingHorizontal: 12, height: 30, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.line, justifyContent: 'center' },
+  chip: { paddingHorizontal: 12, minHeight: 30, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.line, justifyContent: 'center' },
   chipOn: { backgroundColor: colors.gold, borderColor: colors.gold },
   chipText: { fontFamily: fonts.bodyBold, fontSize: 12, color: colors.text },
   row: { minHeight: 48, flexDirection: 'row', alignItems: 'center', gap: 10 },

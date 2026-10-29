@@ -35,23 +35,38 @@ export function T({
 }) {
   const flat = StyleSheet.flatten([textStyles[variant], style]) as TextStyle;
   return (
-    <Text style={[flat, displayLineFix(flat)]} maxFontSizeMultiplier={1.4} {...rest}>
+    <Text style={[flat, fitLine(flat)]} maxFontSizeMultiplier={1.4} {...rest}>
       {children}
     </Text>
   );
 }
 
 /**
- * Display capitals (Cinzel) have tall letters. If the line height is close
- * to the font size, iOS clips the tops of the letters and numbers, so every
- * display-font text gets at least 1.25x line height.
+ * The smallest line height (as a multiple of the font size) at which each font's letters
+ * aren't clipped. iOS trims the top of the line when lineHeight is tighter than the font
+ * needs, which cuts off tall capitals, accents and numbers. Worked out from each font's
+ * ascent/descent metrics.
  */
-function displayLineFix(s: TextStyle): TextStyle | null {
-  if (s.fontFamily !== fonts.display || !s.fontSize) return null;
-  return {
-    lineHeight: Math.max(s.lineHeight ?? 0, Math.ceil(s.fontSize * 1.25)),
-    includeFontPadding: false,
-  };
+const MIN_LINE: Record<string, number> = {
+  [fonts.display]: 1.25, // Cinzel (also fonts.engraved)
+  [fonts.serif]: 1.18,
+  [fonts.serifItalic]: 1.18,
+  [fonts.body]: 1.3,
+  [fonts.bodyBold]: 1.3,
+  [fonts.bodyHeavy]: 1.3,
+  Anton_400Regular: 1.2,
+};
+
+/**
+ * Gives any text style a line height its font actually fits in. Used by <T> and by the few
+ * places that render a raw <Text> or <TextInput>. Styles without a lineHeight are left alone
+ * (the native default never clips).
+ */
+export function fitLine(s: TextStyle): TextStyle | null {
+  if (!s.fontSize || s.lineHeight == null) return null;
+  const min = Math.ceil(s.fontSize * (MIN_LINE[s.fontFamily ?? ''] ?? 1.3));
+  if (s.lineHeight >= min) return null;
+  return { lineHeight: min, includeFontPadding: false };
 }
 
 const textStyles = StyleSheet.create({
@@ -61,9 +76,9 @@ const textStyles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 1,
     fontSize: 34,
-    lineHeight: 42,
+    lineHeight: 43,
   },
-  serif: { fontFamily: fonts.serif, color: colors.text, fontSize: 28, lineHeight: 32 },
+  serif: { fontFamily: fonts.serif, color: colors.text, fontSize: 28, lineHeight: 34 },
   serifItalic: { fontFamily: fonts.serifItalic, color: colors.text, fontSize: 18, lineHeight: 23 },
   title: { fontFamily: fonts.bodyHeavy, color: colors.text, fontSize: 18 },
   body: { fontFamily: fonts.body, color: colors.text, fontSize: 15, lineHeight: 21 },
@@ -127,7 +142,15 @@ export function Button({
           {icon ? (
             <Icon name={icon} size={compact ? 16 : 18} color={fg} filled={icon === 'play'} />
           ) : null}
-          <Text style={[btn.text, compact && btn.textCompact, { color: fg }]}>{label}</Text>
+          <Text
+            style={[btn.text, compact && btn.textCompact, { color: fg }]}
+            numberOfLines={1}
+            adjustsFontSizeToFit
+            minimumFontScale={0.8}
+            maxFontSizeMultiplier={1.3}
+          >
+            {label}
+          </Text>
         </>
       )}
     </Pressable>
@@ -156,7 +179,7 @@ const btn = StyleSheet.create({
   live: { backgroundColor: colors.live },
   /** For use on gold surfaces (the Backstage ticket): dark button, gold lettering. */
   dark: { backgroundColor: colors.ink },
-  text: { fontFamily: fonts.bodyHeavy, fontSize: 15 },
+  text: { fontFamily: fonts.bodyHeavy, fontSize: 15, flexShrink: 1 },
   textCompact: { fontSize: 13 },
 });
 
@@ -295,7 +318,7 @@ export function HumanStamp({ size = 62 }: { size?: number }) {
 }
 const stamp = StyleSheet.create({
   small: { fontFamily: fonts.engraved, fontSize: 8, letterSpacing: 1.6, color: colors.text },
-  made: { fontFamily: fonts.serifItalic, fontSize: 16, lineHeight: 17, color: colors.text },
+  made: { fontFamily: fonts.serifItalic, fontSize: 16, lineHeight: 19, color: colors.text },
 });
 
 export function WaxSeal({ size = 60 }: { size?: number }) {

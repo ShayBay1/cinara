@@ -31,7 +31,7 @@ export default function TimeManagementScreen() {
     <SettingsPage title="Time management">
       <View style={{ gap: 4 }}>
         <T variant="caption">Today</T>
-        <T style={{ fontFamily: fonts.serif, fontSize: 40, lineHeight: 44, color: colors.text }}>{minutesLabel(todayMin)}</T>
+        <T style={{ fontFamily: fonts.serif, fontSize: 40, lineHeight: 48, color: colors.text }}>{minutesLabel(todayMin)}</T>
         <T variant="caption">{`Daily average this week: ${minutesLabel(Math.round(week / 7))}`}</T>
       </View>
       <View style={{ flexDirection: 'row', alignItems: 'flex-end', gap: 10, height: 120 }}>

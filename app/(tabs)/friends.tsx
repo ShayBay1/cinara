@@ -235,7 +235,7 @@ function say(title: string, message: string) {
 const styles = StyleSheet.create({
   input: {
     flex: 1,
-    height: 46,
+    minHeight: 46,
     borderRadius: radius.md,
     borderWidth: 1,
     borderColor: '#3A2E20',

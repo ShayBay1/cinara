@@ -495,6 +495,6 @@ const styles = StyleSheet.create({
   segment: { flex: 1, height: 4, borderRadius: 2, backgroundColor: '#33333D' },
   dropLabel: { color: 'rgba(244,241,234,0.85)', fontFamily: fonts.bodyBold },
   glyph: { position: 'absolute', fontFamily: fonts.bodyHeavy, fontSize: 8, top: '47%' },
-  nextPill: { height: 40, paddingHorizontal: 12, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(244,241,234,0.35)', flexDirection: 'row', alignItems: 'center', gap: 6 },
+  nextPill: { minHeight: 40, paddingHorizontal: 12, borderRadius: 10, borderWidth: 1, borderColor: 'rgba(244,241,234,0.35)', flexDirection: 'row', alignItems: 'center', gap: 6 },
   nextSquare: { width: 44, height: 44, borderRadius: 12, borderWidth: 1, borderColor: 'rgba(244,241,234,0.35)', alignItems: 'center', justifyContent: 'center' },
 });

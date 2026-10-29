@@ -199,7 +199,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-    height: 42,
+    minHeight: 42,
     borderRadius: radius.pill,
     backgroundColor: colors.surface,
     borderWidth: 1,

@@ -94,7 +94,7 @@ export default function CastScreen() {
             {social?.avatarUrl ? (
               <Image source={{ uri: social.avatarUrl }} style={StyleSheet.absoluteFill} contentFit="cover" />
             ) : (
-              <T style={{ fontFamily: fonts.serif, fontSize: 64, lineHeight: 72, color: colors.text }}>
+              <T style={{ fontFamily: fonts.serif, fontSize: 64, lineHeight: 76, color: colors.text }}>
                 {(name || social?.displayName || member.role).charAt(0)}
               </T>
             )}
@@ -112,7 +112,7 @@ export default function CastScreen() {
             style={{
               fontFamily: fonts.serif,
               fontSize: 34,
-              lineHeight: 40,
+              lineHeight: 41,
               color: colors.text,
               textAlign: 'center',
             }}
