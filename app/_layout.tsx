@@ -111,6 +111,9 @@ export default function RootLayout() {
           <Stack.Screen name="comments/[showId]/[episode]" options={{ presentation: 'modal' }} />
           <Stack.Screen name="join" options={{ presentation: 'modal' }} />
           <Stack.Screen name="sign-in" options={{ presentation: 'modal' }} />
+          <Stack.Screen name="auth-callback" options={{ animation: 'fade' }} />
+          <Stack.Screen name="done" options={{ animation: 'none' }} />
+          <Stack.Screen name="login-security" options={{ animation: 'slide_from_right' }} />
           <Stack.Screen name="search" options={{ animation: 'fade' }} />
           <Stack.Screen name="cast/[showId]/[index]" options={{ animation: 'slide_from_right' }} />
           <Stack.Screen name="settings" options={{ animation: 'slide_from_right' }} />

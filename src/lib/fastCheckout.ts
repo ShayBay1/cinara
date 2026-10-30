@@ -139,9 +139,13 @@ export function usePurchaseReturn(qc: QueryClient) {
       }, 2500);
     };
     const onUrl = ({ url }: { url: string }) => {
-      const q = Linking.parse(url).queryParams ?? {};
-      if (q.paid === '1') settle(true);
-      else if (q.paid === '0') settle(false);
+      const parsed = Linking.parse(url);
+      const q = parsed.queryParams ?? {};
+      // Universal Link back from paying: https://cinaratv.com/done?to=…&unlocked=1 (no paid= on it).
+      const isDone = (parsed.path ?? '').replace(/^\/+|\/+$/g, '') === 'done';
+      const flagged = Object.values(FLAG).some((f) => q[f] === '1');
+      if (q.paid === '1' || (isDone && flagged)) settle(true);
+      else if (q.paid === '0' || isDone) settle(false);
     };
     const link = Linking.addEventListener('url', onUrl);
     // Came back by switching apps instead of the link: still refresh.

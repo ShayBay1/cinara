@@ -170,6 +170,8 @@ export default function SettingsScreen() {
         <View>
           <T style={styles.h2}>How you use Cinara</T>
           <View style={styles.card}>
+            <LinkRow icon="lock" label="Login & security" hint="Apple, Google, phone, password" onPress={() => router.push('/login-security')} />
+            <Rule />
             <LinkRow icon="bell" label="Notifications" value={unread.data ? `${unread.data} new` : undefined} onPress={() => router.push('/notification-settings')} />
             <Rule />
             <LinkRow icon="heart" label="Activity" hint="Likes, comments, follows and friend requests" onPress={() => router.push('/activity')} />

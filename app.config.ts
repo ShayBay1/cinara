@@ -34,6 +34,10 @@ const config: ExpoConfig = {
   ios: {
     bundleIdentifier: 'com.cinara.app',
     supportsTablet: false,
+    usesAppleSignIn: true,
+    // Universal Links: cinaratv.com links (and the return from paying) open the app with no prompt.
+    // Team J9G8ZQZP7L; the matching file is cinaratv.com/apple-app-site-association.
+    associatedDomains: ['applinks:cinaratv.com', 'applinks:www.cinaratv.com', 'webcredentials:cinaratv.com'],
     infoPlist: {
       ITSAppUsesNonExemptEncryption: false,
       // The premiere countdown in the Dynamic Island and on the lock screen.
