@@ -233,7 +233,7 @@ function Trailing({ item }: { item: Item }) {
     const src = m?.locked ? m?.preview : m?.url;
     return (
       <View style={styles.thumb}>
-        {src ? <Image source={{ uri: String(src) }} style={StyleSheet.absoluteFill} contentFit="cover" blurRadius={m?.locked ? 20 : 0} /> : null}
+        {src ? <Image source={typeof src === 'string' ? { uri: src } : src} style={StyleSheet.absoluteFill} contentFit="cover" blurRadius={m?.locked ? 20 : 0} /> : null}
         {m?.locked ? <Icon name="lock" size={14} color={colors.goldLight} /> : !src ? <Icon name="chat" size={16} color={colors.muted} /> : null}
       </View>
     );

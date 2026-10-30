@@ -34,8 +34,17 @@ const WINDOWS = [
 ];
 /** When the window starts to open, from the first frame of the video. */
 const OPEN_AT_MS = 1050;
-/** The window clears the screen at ~2.05 s: right as the music peaks. */
-const ZOOM_MS = 1000;
+/**
+ * When the window clears the screen, by the video's own clock: the top of the swell (the sound is
+ * loudest from 1.90 to 2.00 s). The zoom is timed to land here from wherever the video actually is
+ * when it starts, so a slow start or a busy launch can't push the picture ahead of (or behind) the music.
+ */
+const REVEAL_AT_MS = 1950;
+/** The zoom never runs shorter or longer than this, whatever the video clock says. */
+const ZOOM_MIN_MS = 450;
+const ZOOM_MAX_MS = 1100;
+/** If the video hasn't really started by now, open without it (muted, so late sound can't play out of sync). */
+const NO_START_MS = 2500;
 /** After that, the chord rings out for about this long; the warm glow fades with it. */
 const RING_OUT_MS = 1900;
 /** The whole sound, start to end. The intro never outlives it (or this, if the video stalls). */
@@ -111,65 +120,61 @@ export function LaunchIntro({
     );
   };
 
-  const openWindow = (fast = false) => {
+  /** atMs: where the video's clock is right now, so the zoom lands on the swell. */
+  const openWindow = (fast = false, atMs = OPEN_AT_MS) => {
     if (opened.current) return;
     opened.current = true;
     setOpen(true);
     onOpen();
+    const zoomMs = fast ? 380 : Math.min(ZOOM_MAX_MS, Math.max(ZOOM_MIN_MS, REVEAL_AT_MS - atMs));
     z.value = withTiming(
       1,
-      { duration: fast ? 380 : ZOOM_MS, easing: Easing.in(Easing.cubic) },
+      { duration: zoomMs, easing: Easing.in(Easing.cubic) },
       (ok) => ok && runOnJS(reveal)(),
     );
     // The projector shutter flickers over the picture as it arrives.
     dark.value = withDelay(
-      fast ? 150 : 420,
+      fast ? 150 : Math.round(zoomMs * 0.42),
       withSequence(...flicker(19, 24, 0.12, 0.5, [28, 66]), withTiming(0, { duration: 180 })),
     );
   };
 
   useEffect(() => {
-    // The window opens 1.05 s into the video. Three cues can start that clock, whichever comes first,
-    // so a missed event can never leave the reel frozen: the video reporting that it's playing, the
-    // video's own clock passing the mark, or (if the video is already playing when we start listening)
-    // right away. If the video never starts at all, the window still opens on time.
-    let openTimer: ReturnType<typeof setTimeout> | undefined;
-    const startClock = (alreadyMs = 0) => {
-      if (openTimer || opened.current) return;
-      openTimer = setTimeout(() => openWindow(), Math.max(0, OPEN_AT_MS - alreadyMs));
-    };
-    player.timeUpdateEventInterval = 0.05;
+    // Everything follows the video's own clock (what you hear), never a JS timer started "about when"
+    // the video began: on a cold launch the video can report playing a few hundred ms before its sound
+    // actually starts, and timers fire late while the app is busy loading, which put the picture ahead
+    // of the music. The window opens when the video's clock passes 1.05 s.
+    player.timeUpdateEventInterval = 1 / 30;
     const playing = player.addListener('playingChange', ({ isPlaying }) => {
-      if (isPlaying) {
-        onReady();
-        startClock(player.currentTime * 1000);
-      }
+      if (isPlaying) onReady();
     });
     const time = player.addListener('timeUpdate', ({ currentTime }) => {
-      if (currentTime > 0) startClock(currentTime * 1000);
-      if (currentTime * 1000 >= OPEN_AT_MS) openWindow();
+      const ms = currentTime * 1000;
+      if (ms >= OPEN_AT_MS) openWindow(false, ms);
     });
     const status = player.addListener('statusChange', ({ status: s }) => {
       if (s === 'readyToPlay') onReady();
       if (s === 'error') {
         onReady();
+        player.muted = true;
         openWindow(true);
       }
     });
-    if (player.playing) {
-      onReady();
-      startClock(player.currentTime * 1000);
-    }
+    if (player.playing) onReady();
     // The video ending only closes the intro once the window has fully opened; until then the
     // window's own animation decides (so the zoom is never cut off).
     const ended = player.addListener('playToEnd', () => {
       if (revealedRef.current) finish();
     });
-    // If the video never starts, open anyway (at full speed), and never hold the app longer than this.
+    // If the video hasn't really started (its clock barely moved), open anyway, quickly and muted,
+    // so the app never waits on it and its sound can't arrive late and out of step.
     const noStart = setTimeout(() => {
+      if (opened.current) return;
       onReady();
-      openWindow();
-    }, OPEN_AT_MS + 600);
+      if (player.currentTime * 1000 >= OPEN_AT_MS * 0.6) return openWindow(false, player.currentTime * 1000);
+      player.muted = true;
+      openWindow(true);
+    }, NO_START_MS);
     const safety = setTimeout(finish, SOUND_MS + 2500);
     return () => {
       playing.remove();
@@ -178,7 +183,6 @@ export function LaunchIntro({
       ended.remove();
       clearTimeout(noStart);
       clearTimeout(safety);
-      if (openTimer) clearTimeout(openTimer);
     };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [player]);

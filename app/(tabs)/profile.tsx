@@ -191,7 +191,7 @@ export default function ProfileScreen() {
             onPress={() => router.push({ pathname: '/actor/[handle]', params: { handle: me.data!.handle } })}
             style={{ flex: 1 }}
           />
-          <Button compact kind="outline" label="Creator settings" onPress={() => router.push('/creator')} style={{ flex: 1 }} />
+          <Button compact kind="outline" label="Studio" onPress={() => router.push('/studio')} style={{ flex: 1 }} />
         </View>
       ) : null}
 

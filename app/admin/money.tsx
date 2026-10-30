@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Pressable, Text, View } from 'react-native';
 
-import { closeQuarter, downloadCsv, finalizePassMonth, markActorPaid, useMessageMonth, markPaid, saveGift, useAdminAction, useAdminGifts, usePassMonth, useQuarter, type AdminGift } from '@/admin/data';
+import { closeQuarter, downloadCsv, finalizePassMonth, markActorPaid, markUnlocksPaid, useMessageMonth, useUnlockMonth, markPaid, saveGift, useAdminAction, useAdminGifts, usePassMonth, useQuarter, type AdminGift } from '@/admin/data';
 import { Btn, Card, ErrorText, Field, Loading, Page, Pill, s, Tr } from '@/admin/ui';
 import { count, money, previousQuarter, quarterOf, shortDate } from '@/lib/share';
 import { colors } from '@/theme/tokens';
@@ -150,6 +150,8 @@ function BackstageCard() {
   const data = usePassMonth(month);
   const msgs = useMessageMonth(month);
   const pay = useAdminAction(markActorPaid);
+  const unlocks = useUnlockMonth(month);
+  const payUnlocks = useAdminAction(markUnlocksPaid);
   const finalize = useAdminAction(async () => finalizePassMonth(month));
   const m = data.data;
   const current = month === months[0];
@@ -255,7 +257,41 @@ function BackstageCard() {
       ) : (
         <Text style={[s.small, { marginTop: 6 }]}>No messages add-ons this month.</Text>
       )}
-      <ErrorText error={data.error ?? msgs.error ?? pay.error ?? finalize.error} />
+      <Text style={[s.th, { marginTop: 18 }]}>Paid messages and posts (unlocks)</Text>
+      {(unlocks.data ?? []).length ? (
+        <>
+          <Tr head flex={[1.4, 1, 1, 1, 1.4]} cells={['Actor', 'Sales', 'Paid in', 'Their share (80%)', '']} />
+          {(unlocks.data ?? []).map((x) => (
+            <Tr
+              key={x.actor_id}
+              flex={[1.4, 1, 1, 1, 1.4]}
+              cells={[
+                x.handle ? `@${x.handle}` : '(deleted)',
+                count(x.sales),
+                money(x.gross_cents),
+                money(x.actor_cents),
+                x.paid ? (
+                  <Pill key="p" text="Paid" tone="muted" />
+                ) : (
+                  <Btn
+                    key="b"
+                    label="Mark paid"
+                    kind="primary"
+                    busy={payUnlocks.isPending && payUnlocks.variables?.actor === x.actor_id}
+                    onPress={() => {
+                      if (globalThis.confirm?.(`Mark ${money(x.actor_cents)} of unlocks paid to @${x.handle} for ${month.slice(0, 7)}?`))
+                        payUnlocks.mutate({ actor: x.actor_id, month });
+                    }}
+                  />
+                ),
+              ]}
+            />
+          ))}
+        </>
+      ) : (
+        <Text style={[s.small, { marginTop: 6 }]}>No unlocks this month.</Text>
+      )}
+      <ErrorText error={data.error ?? msgs.error ?? pay.error ?? finalize.error ?? unlocks.error ?? payUnlocks.error} />
     </Card>
   );
 }

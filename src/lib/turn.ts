@@ -21,9 +21,11 @@ export const CHROME_FADE_MS = 260;
 /** Below this share of gravity in the screen plane, the phone is lying flat and gliding pauses. */
 export const FLAT_RATIO = 0.4;
 /** How far the phone turns before the picture breaks into a glide (the test page used 20). */
-export const BREAK_DEG = 15;
+export const BREAK_DEG = 12;
 /** After the break, the picture catches up to level gradually over this much more turning (no jump). */
-export const CATCH_DEG = 25;
+export const CATCH_DEG = 28;
+/** Below this speed (degrees per second) the phone counts as truly still, not just turning slowly. */
+export const STILL_VEL = 10;
 
 /** Clamp to [lo, hi]. */
 export function clamp(v: number, lo: number, hi: number): number {
@@ -130,7 +132,10 @@ export function stepGlide(prev: GlideState, phiIn: number | null, dt: number, sm
   s.prev = phi;
   s.vel += (v - s.vel) * Math.min(1, dt * 12);
   const calm = Math.abs(s.vel) < 40;
-  s.still = calm ? s.still + dt : 0;
+  // "Still" means really stopped. A slow, steady turn (say 20 degrees a second) is still a turn: if it
+  // counted as still, the picture would settle back square mid-turn, then break again, over and over,
+  // which made it wobble out of level and run ahead of the phone.
+  s.still = Math.abs(s.vel) < STILL_VEL ? s.still + dt : 0;
 
   if (!smooth) {
     // classic: hold past 45 degrees for 250 ms, then flip instantly
@@ -151,14 +156,20 @@ export function stepGlide(prev: GlideState, phiIn: number | null, dt: number, sm
   } else if (s.mode === 'glide') {
     // Catch up to level smoothly: at the break the picture keeps its tilt, then eases level over the
     // next CATCH_DEG of turning, so it never jumps to catch up.
+    // The tilt it eases out of is the tilt it had at the break, never more: the picture only ever moves
+    // toward level, so it never swings past the phone's speed by tilting further first.
     const e = clamp((Math.abs(d) - BREAK_DEG) / CATCH_DEG, 0, 1);
-    const level = d * (1 - e * e * (3 - 2 * e));
+    const level = Math.sign(d) * Math.min(Math.abs(d), BREAK_DEG) * (1 - e * e * (3 - 2 * e));
     if (reduce) {
       s.psi = level;
       s.psiV = 0;
     } else spring(level, 26);
     // On a phone there's no "let go" moment, so the test page's release rule is the still rule.
-    if ((Math.abs(phi - N) < 15 && calm) || s.still > 0.35) {
+    // Settle into a new orientation once the phone is well inside its break angle (so settling can't
+    // immediately break back into a glide), or back into the same one once it has clearly returned, or
+    // wherever the phone has truly stopped near an orientation.
+    const near = Math.abs(phi - N) < (N !== s.T ? BREAK_DEG * 0.75 : BREAK_DEG / 2);
+    if ((near && calm) || (s.still > 0.35 && Math.abs(phi - N) < 30)) {
       s.T = N;
       s.mode = 'settle';
       s.settleT = 0;
@@ -174,12 +185,17 @@ export function stepGlide(prev: GlideState, phiIn: number | null, dt: number, sm
       lock();
       return s;
     }
-    spring(phi - s.T, 18);
+    // While the phone is still travelling into the orientation, keep the picture level: arriving squares
+    // it by itself. Only once the phone stops short (a hand is never exactly square) does the picture
+    // ease square into the phone. Tilting it with the phone during the last few degrees is what made it
+    // look like it ran ahead of the turn.
+    const approaching = Math.abs(s.vel) > STILL_VEL && Math.sign(s.vel) === -Math.sign(phi - s.T);
+    spring(approaching ? 0 : phi - s.T, 18);
     s.settleT += dt;
     // A hand is never perfectly still, so the spring may never land exactly. Lock once it's close, or
-    // after half a second at most, so the turn can't get stuck "settling" (which hides the controls).
+    // after a little over a second at most, so the turn can't get stuck "settling" (which hides the controls).
     const gap = Math.abs(s.psi - (phi - s.T));
-    if ((gap < 0.25 && Math.abs(s.psiV) < 2) || (gap < 1.5 && Math.abs(s.psiV) < 25) || s.settleT > 0.5) lock();
+    if ((gap < 0.25 && Math.abs(s.psiV) < 2) || (gap < 0.6 && Math.abs(s.psiV) < 25) || (s.settleT > 0.5 && gap < 2) || s.settleT > 1.2) lock();
   }
   return s;
 }

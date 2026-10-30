@@ -34,7 +34,14 @@ export type IconName =
   | 'reel'
   | 'search'
   | 'settings'
-  | 'ticket';
+  | 'ticket'
+  | 'mic'
+  | 'ghost'
+  | 'dollar'
+  | 'image'
+  | 'vault'
+  | 'link'
+  | 'megaphone';
 
 interface Props {
   name: IconName;
@@ -77,6 +84,41 @@ export function Icon({ name, size = 22, color = colors.text, filled = false }: P
           <Path {...common} d="M4 21c1.5-4 4.5-6 8-6s6.5 2 8 6" />
         </>
       )}
+      {name === 'mic' && (
+        <>
+          <Rect {...common} x={9} y={3} width={6} height={11} rx={3} />
+          <Path {...common} d="M5 11a7 7 0 0 0 14 0M12 18v3" />
+        </>
+      )}
+      {name === 'ghost' && (
+        <>
+          <Path {...common} fill={fill} d="M5 21V11a7 7 0 0 1 14 0v10l-2.5-2-2.3 2-2.2-2-2.2 2-2.3-2z" />
+          <Circle cx={9.5} cy={11} r={1.2} fill={filled ? colors.ink : color} />
+          <Circle cx={14.5} cy={11} r={1.2} fill={filled ? colors.ink : color} />
+        </>
+      )}
+      {name === 'dollar' && (
+        <>
+          <Circle {...common} cx={12} cy={12} r={9} />
+          <Path {...common} d="M15 9.5c-.5-1.2-1.7-2-3-2-1.7 0-3 1-3 2.3 0 3 6 1.7 6 4.6 0 1.4-1.3 2.4-3 2.4-1.4 0-2.6-.8-3.1-2M12 6v1.5M12 16.8v1.4" />
+        </>
+      )}
+      {name === 'image' && (
+        <>
+          <Rect {...common} x={3} y={4} width={18} height={16} rx={3} />
+          <Circle {...common} cx={9} cy={10} r={1.8} />
+          <Path {...common} d="M21 16l-5-5-9 9" />
+        </>
+      )}
+      {name === 'vault' && (
+        <>
+          <Rect {...common} x={3} y={4} width={18} height={15} rx={2.5} />
+          <Circle {...common} cx={12} cy={11.5} r={3.5} />
+          <Path {...common} d="M12 8v1M12 14v1M7 19v2M17 19v2" />
+        </>
+      )}
+      {name === 'link' && <Path {...common} d="M10 14a4 4 0 0 0 5.7 0l3-3a4 4 0 0 0-5.7-5.7l-1 1M14 10a4 4 0 0 0-5.7 0l-3 3a4 4 0 0 0 5.7 5.7l1-1" />}
+      {name === 'megaphone' && <Path {...common} d="M4 10v4h3l7 4V6L7 10zM17 9a4 4 0 0 1 0 6M7 14l1.5 5h2.5l-1-4.5" />}
       {name === 'play' && <Path {...common} fill={color} d="M7 4.5v15l12-7.5z" />}
       {name === 'plus' && <Path {...common} strokeWidth={2.4} d="M12 5v14M5 12h14" />}
       {name === 'check' && <Path {...common} strokeWidth={2.4} d="M5 12.5l4.5 4.5L19 7.5" />}

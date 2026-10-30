@@ -1,4 +1,6 @@
-import type { ActorCard, ActorProfile, Media, Post, PostComment } from './api';
+import type { CreatorStats, MyActivity } from './analytics';
+import type { ActorCard, ActorProfile, Media, Post, PostComment, Relation } from './api';
+import type { AppNotification } from './notifications';
 
 /**
  * Placeholder creators and posts so the feed looks alive while testing.
@@ -167,4 +169,88 @@ export function demoPeople(query: string) {
     role: c.roles[0]?.title ?? null,
     demo: true,
   }));
+}
+
+/* ---------- Sample Activity and analytics (only when the app runs without the live backend) ---------- */
+
+const minAgo = (min: number) => new Date(Date.now() - min * 60_000).toISOString();
+const fan = (id: string, handle: string) => ({ id, handle, avatarUrl: null, isCast: false, verified: false, displayName: null });
+
+/** A believable Activity tab for previews and walkthroughs. */
+export function demoNotifications(): AppNotification[] {
+  const base = { commentId: null, showId: null, episode: null, snippet: null, data: {}, showTitle: null, showCover: null, postMedia: null, relation: null, postId: null } as const;
+  const post = (id: string, src: number) => ({ postId: id, postMedia: { type: 'image' as const, url: src, preview: src } });
+  return [
+    { ...base, id: 'n1', kind: 'show_live', createdAt: minAgo(2), read: false, actor: null, data: { from: 11, to: 20 }, showId: 'the-ex-wife-returns', showTitle: 'The Ex-Wife Returns', url: '/live/the-ex-wife-returns' },
+    { ...base, id: 'n2', kind: 'actor_live', createdAt: minAgo(9), read: false, actor: by('demo-sienna'), showId: 'the-alpha-next-door', showTitle: 'The Alpha Next Door', url: '/room/the-alpha-next-door' },
+    { ...base, id: 'n3', kind: 'friend_request', createdAt: minAgo(25), read: false, actor: fan('fan-jordan', 'jordan.k'), url: '/people', relation: 'incoming' as Relation },
+    { ...base, id: 'n4', kind: 'comment_reply', createdAt: minAgo(48), read: false, actor: by('demo-marcus'), snippet: 'Wait till you see episode 14 😅', ...post('demo-p2', COVERS.fortune), url: '/post/demo-p2' },
+    { ...base, id: 'n5', kind: 'actor_post', createdAt: minAgo(130), read: true, actor: by('demo-ava'), snippet: 'Guest spot on The Ex-Wife Returns.', ...post('demo-p4', COVERS.exwife), url: '/post/demo-p4' },
+    { ...base, id: 'n6', kind: 'channel_post', createdAt: minAgo(300), read: true, actor: by('demo-nia'), snippet: 'Poll: which scene should I break down next?', url: '/channel/nia.directs' },
+    { ...base, id: 'n7', kind: 'follow', createdAt: minAgo(60 * 26), read: true, actor: fan('fan-maya', 'maya.watches'), url: '/actor/maya.watches' },
+    { ...base, id: 'n8', kind: 'friend_accept', createdAt: minAgo(60 * 30), read: true, actor: fan('fan-dev', 'devon.r'), url: '/actor/devon.r', relation: 'friends' as Relation },
+    { ...base, id: 'n9', kind: 'show_upcoming', createdAt: minAgo(60 * 50), read: true, actor: null, data: { from: 21, to: 30 }, showId: 'his-secret-fortune', showTitle: 'His Secret Fortune', episode: 21, url: '/show/his-secret-fortune' },
+    { ...base, id: 'n10', kind: 'mention', createdAt: minAgo(60 * 24 * 4), read: true, actor: fan('fan-lee', 'lee.binges'), snippet: '@you you were right about the twist', url: '/comments/his-secret-fortune/12' },
+  ];
+}
+
+const series = (days: number, f: (i: number) => number) =>
+  Array.from({ length: days }, (_, i) => {
+    const d = new Date(Date.now() - (days - 1 - i) * 86_400_000);
+    return { day: d.toISOString().slice(0, 10), v: f(i) };
+  });
+
+/** Sample creator dashboard numbers. */
+export function demoCreatorStats(days: number): CreatorStats {
+  const daily = series(days, (i) => Math.round(900 + 600 * Math.sin(i / 2.3) + i * 40 + ((i * 37) % 300))).map((d, i) => ({
+    day: d.day,
+    reached: d.v,
+    visits: Math.round(d.v / 7),
+    followers: Math.round(d.v / 40 + (i % 3)),
+  }));
+  const sum = (k: 'reached' | 'visits' | 'followers') => daily.reduce((t, d) => t + d[k], 0);
+  return {
+    days,
+    followers: 18400,
+    newFollowers: sum('followers'),
+    newFollowersPrev: Math.round(sum('followers') * 0.8),
+    profileVisits: sum('visits'),
+    profileVisitsPrev: Math.round(sum('visits') * 0.86),
+    reached: Math.round(sum('reached') * 0.62),
+    reachedPrev: Math.round(sum('reached') * 0.5),
+    impressions: sum('reached') * 3,
+    likes: Math.round(sum('reached') * 0.21),
+    likesPrev: Math.round(sum('reached') * 0.19),
+    comments: Math.round(sum('reached') * 0.03),
+    backstageFans: 412,
+    backstageViews: 2960,
+    messageFans: 37,
+    earnedCents: 128_450,
+    daily,
+    topPosts: [
+      { id: 'demo-p2', body: 'Fourteen takes. FOURTEEN. Episode 12 is out now.', media: { type: 'image', url: COVERS.fortune }, visibility: 'public', createdAt: minAgo(60 * 24 * 3), reached: 9420, likes: 2210, comments: 188 },
+      { id: 'demo-p6', body: 'The real ring from episode 1.', media: { type: 'image', url: COVERS.alpha }, visibility: 'subscribers', createdAt: minAgo(60 * 24 * 6), reached: 3110, likes: 940, comments: 61 },
+      { id: 'demo-p7', body: 'New show. Coming soon.', media: { type: 'image', url: COVERS.don }, visibility: 'public', createdAt: minAgo(60 * 24 * 9), reached: 2875, likes: 702, comments: 93 },
+    ],
+  };
+}
+
+/** Sample "Your activity". */
+export function demoMyActivity(days: number): MyActivity {
+  const daily = series(days, (i) => Math.round(1500 + 1300 * Math.abs(Math.sin(i * 1.7)) + ((i * 53) % 700))).map((d) => ({ day: d.day, seconds: d.v }));
+  const total = daily.reduce((t, d) => t + d.seconds, 0);
+  return {
+    days,
+    watchSeconds: total,
+    daily,
+    topShows: [
+      { showId: 'his-secret-fortune', title: 'His Secret Fortune', seconds: Math.round(total * 0.46) },
+      { showId: 'the-alpha-next-door', title: 'The Alpha Next Door', seconds: Math.round(total * 0.33) },
+      { showId: 'the-ex-wife-returns', title: 'The Ex-Wife Returns', seconds: Math.round(total * 0.21) },
+    ],
+    comments: 14,
+    likes: 96,
+    friends: 8,
+    following: 5,
+  };
 }

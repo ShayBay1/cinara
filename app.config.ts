@@ -49,11 +49,16 @@ const config: ExpoConfig = {
   },
   web: {
     bundler: 'metro',
-    output: 'static',
+    // EXPO_WEB_OUTPUT=single builds a one-page web app (used for recording walkthroughs).
+    output: process.env.EXPO_WEB_OUTPUT === 'single' ? 'single' : 'static',
     favicon: './assets/favicon.png',
   },
   plugins: [
     'expo-router',
+    [
+      'expo-audio',
+      { microphonePermission: 'Cinara uses the microphone to record voice messages you send.' },
+    ],
     [
       'expo-widgets',
       {

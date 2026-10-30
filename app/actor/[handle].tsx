@@ -28,6 +28,7 @@ import { JoinBackstage, MessagesCard, openJoin } from '@/social/Join';
 import { sk, useActor, useFollow, usePostsBy } from '@/social/hooks';
 import { recordProfileVisit } from '@/social/analytics';
 import { getPostNotifications, setPostNotifications } from '@/social/notifications';
+import { shareProfile } from '@/social/studio';
 import { CreatorRing } from '@/social/ui';
 import { colors, fonts, radius } from '@/theme/tokens';
 
@@ -121,7 +122,7 @@ export default function ActorScreen() {
   return (
     <ScrollView
       style={styles.fill}
-      contentContainerStyle={{ paddingTop: insets.top + 4, paddingBottom: insets.bottom + 40 }}
+      contentContainerStyle={{ paddingTop: a.coverUrl ? 0 : insets.top + 4, paddingBottom: insets.bottom + 40 }}
       refreshControl={
         <RefreshControl
           tintColor={colors.gold}
@@ -133,13 +134,23 @@ export default function ActorScreen() {
         />
       }
     >
-      <View style={styles.bar}>
+      {a.coverUrl ? (
+        <View style={{ height: 170 + insets.top }}>
+          <Image source={{ uri: a.coverUrl }} style={StyleSheet.absoluteFill} contentFit="cover" />
+          <View style={[StyleSheet.absoluteFill, { backgroundColor: 'rgba(21,16,11,0.25)' }]} />
+        </View>
+      ) : null}
+      <View style={[styles.bar, a.coverUrl ? { position: 'absolute', top: insets.top + 4, left: 0, right: 0 } : null]}>
         <IconButton icon="back" label="Back" onPress={back} />
         <View style={{ flexDirection: 'row', alignItems: 'center', gap: 6 }}>
           <T style={{ fontFamily: fonts.bodyHeavy, fontSize: 17, color: colors.text }}>{a.handle}</T>
           {a.verified ? <Verified size={16} /> : null}
         </View>
-        <View style={{ width: 44 }} />
+        {a.isMe && a.isCast ? (
+          <IconButton icon="link" label="Share your page" onPress={() => void shareProfile(a.handle, a.displayName)} />
+        ) : (
+          <View style={{ width: 44 }} />
+        )}
       </View>
 
       <View style={{ paddingHorizontal: 16 }}>
@@ -191,7 +202,7 @@ export default function ActorScreen() {
           ) : a.isMe ? (
             <>
               <Button compact label="New post" icon="plus" onPress={() => router.push('/post/new')} style={{ flex: 1 }} />
-              <Button compact kind="outline" label="Dashboard" onPress={() => router.push('/analytics')} style={{ flex: 1 }} />
+              <Button compact kind="outline" label="Studio" onPress={() => router.push('/studio')} style={{ flex: 1 }} />
               <Button compact kind="outline" label="Edit profile" onPress={() => router.push('/edit-profile')} style={{ flex: 1 }} />
             </>
           ) : (
@@ -373,7 +384,7 @@ function Tile({ post, size }: { post: Post; size: number }) {
     >
       {src && first?.type !== 'video' ? (
         <Image
-          source={typeof src === 'number' ? src : { uri: src }}
+          source={typeof src === 'string' ? { uri: src } : src}
           style={{ width: size, height }}
           contentFit="cover"
           transition={120}

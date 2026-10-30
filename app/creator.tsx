@@ -1,7 +1,7 @@
 import { useQueryClient } from '@tanstack/react-query';
 import { router } from 'expo-router';
 import { useEffect, useState } from 'react';
-import { ActivityIndicator, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { ActivityIndicator, Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
 import { Button, IconButton, Panel, SwitchRow, T } from '@/components/ui';
@@ -12,6 +12,9 @@ import { notify } from '@/lib/safety';
 import { setCreatorSettings, socialLive } from '@/social/api';
 import { sk, useActor, useCreatorStats } from '@/social/hooks';
 import { NeedsLive } from '@/social/ui';
+import { Image } from 'expo-image';
+import { pickMedia } from '@/social/media';
+import { setCover, setTrialDays, studioKeys, TRIAL_OPTIONS, useStudioHome } from '@/social/studio';
 import { colors, fonts, radius } from '@/theme/tokens';
 
 /** For the cast: how you appear, whether fans can message you, and what you've earned from Backstage. */
@@ -29,6 +32,8 @@ export default function CreatorScreen() {
   const [dmsOpen, setDmsOpen] = useState(true);
   const [saving, setSaving] = useState(false);
   const [loaded, setLoaded] = useState(false);
+  const [trial, setTrial] = useState(0);
+  const [coverBusy, setCoverBusy] = useState(false);
 
   useEffect(() => {
     const p = profile.data;
@@ -39,6 +44,41 @@ export default function CreatorScreen() {
     setDmsOpen(p.dmsOpen);
     setLoaded(true);
   }, [profile.data, loaded]);
+
+  // The actor's own trial setting (actor_profile hides it from the actor, who can't take their own trial).
+  const home = useStudioTrial(!!me.data?.isCast);
+  useEffect(() => {
+    if (home != null) setTrial(home);
+  }, [home]);
+
+  const changeCover = async (remove = false) => {
+    setCoverBusy(true);
+    try {
+      if (remove) await setCover(null);
+      else {
+        const [photo] = await pickMedia({ limit: 1, videos: false });
+        if (!photo) return;
+        await setCover(photo);
+      }
+      await qc.invalidateQueries({ queryKey: sk.actor(handle) });
+      void qc.invalidateQueries({ queryKey: studioKeys.home });
+    } catch (e) {
+      notify(e instanceof Error ? e.message : 'Couldn’t change your cover.');
+    } finally {
+      setCoverBusy(false);
+    }
+  };
+  const chooseTrial = async (d: number) => {
+    const before = trial;
+    setTrial(d);
+    try {
+      await setTrialDays(d);
+      void qc.invalidateQueries({ queryKey: studioKeys.home });
+    } catch (e) {
+      setTrial(before);
+      notify(e instanceof Error ? e.message : 'Couldn’t save that.');
+    }
+  };
 
   const back = () => (router.canGoBack() ? router.back() : router.replace('/profile'));
 
@@ -104,6 +144,40 @@ export default function CreatorScreen() {
 
           <View style={{ gap: 8 }}>
             <T variant="eyebrow" style={{ color: colors.text }}>
+              Cover photo
+            </T>
+            <Pressable
+              onPress={() => void changeCover()}
+              accessibilityRole="button"
+              accessibilityLabel="Change cover photo"
+              style={styles.cover}
+            >
+              {profile.data?.coverUrl ? (
+                <Image source={{ uri: profile.data.coverUrl }} style={StyleSheet.absoluteFill} contentFit="cover" />
+              ) : null}
+              <View style={styles.coverBtn}>
+                {coverBusy ? (
+                  <ActivityIndicator color={colors.goldInk} />
+                ) : (
+                  <T style={{ fontFamily: fonts.bodyHeavy, fontSize: 13, color: colors.goldInk }}>
+                    {profile.data?.coverUrl ? 'Change cover' : 'Add a cover photo'}
+                  </T>
+                )}
+              </View>
+            </Pressable>
+            {profile.data?.coverUrl ? (
+              <Pressable onPress={() => void changeCover(true)} accessibilityRole="button" style={{ alignSelf: 'flex-start' }}>
+                <T variant="caption" style={{ color: colors.liveSoft }}>
+                  Remove cover
+                </T>
+              </Pressable>
+            ) : (
+              <T variant="caption">A wide photo across the top of your page, like a banner.</T>
+            )}
+          </View>
+
+          <View style={{ gap: 8 }}>
+            <T variant="eyebrow" style={{ color: colors.text }}>
               Profile
             </T>
             <TextInput
@@ -153,6 +227,26 @@ export default function CreatorScreen() {
                     />
                   </View>
                 </View>
+                <View style={{ height: 1, backgroundColor: colors.line }} />
+                <View style={{ gap: 8, paddingVertical: 12 }}>
+                  <T variant="label">Free trial</T>
+                  <T variant="caption">New fans try messages free first; they’re charged after the trial unless they cancel. Saved right away.</T>
+                  <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 8 }}>
+                    {TRIAL_OPTIONS.map((d) => (
+                      <Pressable
+                        key={d}
+                        onPress={() => void chooseTrial(d)}
+                        accessibilityRole="radio"
+                        accessibilityState={{ selected: trial === d }}
+                        style={[styles.trial, trial === d && styles.trialOn]}
+                      >
+                        <T style={{ fontFamily: fonts.bodyHeavy, fontSize: 13, color: trial === d ? colors.goldInk : colors.text }}>
+                          {d ? `${d} days` : 'Off'}
+                        </T>
+                      </Pressable>
+                    ))}
+                  </View>
+                </View>
               </>
             ) : null}
           </Panel>
@@ -174,7 +268,16 @@ function StatBox({ label, value }: { label: string; value: string }) {
   );
 }
 
+function useStudioTrial(enabled: boolean): number | null {
+  const q = useStudioHome(enabled);
+  return q.data ? q.data.trialDays : null;
+}
+
 const styles = StyleSheet.create({
+  cover: { height: 130, borderRadius: radius.md, overflow: 'hidden', backgroundColor: colors.surfaceRaised, borderWidth: 1, borderColor: colors.line, alignItems: 'center', justifyContent: 'center' },
+  coverBtn: { minHeight: 36, paddingHorizontal: 16, borderRadius: radius.pill, backgroundColor: colors.gold, justifyContent: 'center' },
+  trial: { minHeight: 34, paddingHorizontal: 14, borderRadius: radius.pill, borderWidth: 1, borderColor: colors.line, justifyContent: 'center' },
+  trialOn: { backgroundColor: colors.gold, borderColor: colors.gold },
   input: {
     minHeight: 46,
     borderRadius: radius.md,

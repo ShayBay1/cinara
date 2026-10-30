@@ -17,7 +17,7 @@ import { INITIAL_GLIDE, pictureAngle, restOf, rollFromGravity, stepGlide, type G
 /**
  * The glide turn, exactly as designed and locked in the Glide Turn test page. The app stays locked
  * upright; this hook reads gravity on the UI thread every frame and runs the test page's rules
- * (stepGlide in src/lib/turn.ts): locked, glide past 20 degrees with the picture held level, settle into
+ * (stepGlide in src/lib/turn.ts): locked, glide past 12 degrees with the picture eased level, settle into
  * the nearest orientation, lock with a light haptic tap. The phone's own rotation lock doesn't apply
  * here, so nobody needs a turn button.
  *

@@ -6,7 +6,9 @@ import { Platform } from 'react-native';
 import { getSupabase } from '@/data';
 
 import type { Author, Media, Relation } from './api';
+import { demoNotifications } from './demo';
 
+// Without the live backend (previews, walkthroughs) these return sample data from demo.ts.
 /**
  * The Activity tab (Instagram/TikTok notifications) and notification settings.
  * The server creates every notification (supabase/notifications.sql) and pushes it to the phone;
@@ -86,6 +88,7 @@ const toAuthor = (r: Row | null): Author | null =>
     : null;
 
 export async function listNotifications(): Promise<AppNotification[]> {
+  if (!live()) return demoNotifications();
   const { data, error } = await sb().rpc('list_notifications', { p_before: null });
   if (error) throw new Error(error.message);
   const rows = (data as Row[]) ?? [];
@@ -118,22 +121,26 @@ export async function listNotifications(): Promise<AppNotification[]> {
 }
 
 export async function unreadCount(): Promise<number> {
+  if (!live()) return demoNotifications().filter((n) => !n.read).length;
   const { data, error } = await sb().rpc('unread_notification_count');
   if (error) throw new Error(error.message);
   return Number(data ?? 0);
 }
 
 export async function markAllRead() {
+  if (!live()) return;
   await sb().rpc('mark_notifications_read');
 }
 
 export async function getPrefs(): Promise<Partial<Record<PrefKey, boolean>>> {
+  if (!live()) return {};
   const { data, error } = await sb().rpc('get_notification_prefs');
   if (error) throw new Error(error.message);
   return (data as Partial<Record<PrefKey, boolean>>) ?? {};
 }
 
 export async function setPref(key: PrefKey, on: boolean) {
+  if (!live()) return;
   const { error } = await sb().rpc('set_notification_pref', { p_key: key, p_on: on });
   if (error) throw new Error(error.message);
 }
@@ -157,11 +164,11 @@ export const nk = {
 };
 
 export const useNotifications = (enabled = true) =>
-  useQuery({ queryKey: nk.list, queryFn: listNotifications, enabled: live() && enabled, staleTime: 10_000 });
+  useQuery({ queryKey: nk.list, queryFn: listNotifications, enabled, staleTime: 10_000 });
 export const useUnreadNotifications = (enabled = true) =>
-  useQuery({ queryKey: nk.unread, queryFn: unreadCount, enabled: live() && enabled, refetchInterval: 60_000 });
+  useQuery({ queryKey: nk.unread, queryFn: unreadCount, enabled, refetchInterval: 60_000 });
 export const useNotificationPrefs = (enabled = true) =>
-  useQuery({ queryKey: nk.prefs, queryFn: getPrefs, enabled: live() && enabled });
+  useQuery({ queryKey: nk.prefs, queryFn: getPrefs, enabled });
 
 /**
  * Keeps the badges live: a new notification (or message) refreshes the counts at once,

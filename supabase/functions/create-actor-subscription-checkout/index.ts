@@ -25,6 +25,23 @@ const cors = {
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...cors, "Content-Type": "application/json" } });
 
+/**
+ * One Stripe customer per Cinara account, shared by every purchase, so a card saved once (or Apple Pay /
+ * Link) is ready the next time: unlocking or subscribing is a tap and Face ID, no typing.
+ */
+async function customerFor(user: { id: string; email?: string | null }): Promise<string> {
+  const tables: [string, string][] = [["memberships", "user_id"], ["creator_passes", "user_id"], ["actor_subscriptions", "fan_id"]];
+  for (const [table, col] of tables) {
+    const { data } = await db.from(table).select("stripe_customer_id").eq(col, user.id).not("stripe_customer_id", "is", null).limit(1);
+    const id = (data as { stripe_customer_id: string }[] | null)?.[0]?.stripe_customer_id;
+    if (id) return id;
+  }
+  const found = await stripe.customers.search({ query: `metadata['cinara_user']:'${user.id}'`, limit: 1 }).catch(() => null);
+  if (found?.data[0]) return found.data[0].id;
+  const created = await stripe.customers.create({ email: user.email ?? undefined, metadata: { cinara_user: user.id } });
+  return created.id;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   try {
@@ -37,7 +54,7 @@ Deno.serve(async (req) => {
     if (actorId === user.id) return json({ error: "That's you." }, 400);
 
     const { data: actor } = await db.from("profiles")
-      .select("id, handle, display_name, is_cast, dms_open, sub_price_cents, banned_at, verified_at").eq("id", actorId).maybeSingle();
+      .select("id, handle, display_name, is_cast, dms_open, sub_price_cents, trial_days, banned_at, verified_at").eq("id", actorId).maybeSingle();
     if (!actor?.is_cast || actor.banned_at || !actor.verified_at) return json({ error: "That actor isn't available." }, 404);
     if (!actor.dms_open) return json({ error: "This actor isn't taking messages right now." }, 409);
 
@@ -49,8 +66,10 @@ Deno.serve(async (req) => {
     if (existing?.status === "active") return json({ error: "You can already message this actor." }, 409);
 
     // Reuse their Stripe customer if they have one (membership or an earlier subscription).
-    const { data: m } = await db.from("memberships").select("stripe_customer_id").eq("user_id", user.id).maybeSingle();
-    const customer = existing?.stripe_customer_id ?? m?.stripe_customer_id ?? null;
+    const customer = existing?.stripe_customer_id ?? (await customerFor(user));
+
+    // A free trial only for a fan's first time with this actor.
+    const trialDays = !existing && actor.trial_days > 0 ? actor.trial_days : 0;
 
     const name = actor.display_name || `@${actor.handle}`;
     const path = typeof backPath === "string" && backPath.startsWith("/") ? backPath : `/actor/${encodeURIComponent(actor.handle)}`;
@@ -68,9 +87,9 @@ Deno.serve(async (req) => {
         },
       }],
       client_reference_id: user.id,
-      ...(customer ? { customer } : { customer_email: user.email }),
+      customer,
       metadata,
-      subscription_data: { metadata },
+      subscription_data: { metadata, ...(trialDays ? { trial_period_days: trialDays } : {}) },
       success_url: `${back}${back.includes("?") ? "&" : "?"}messages=1`,
       cancel_url: back,
     });

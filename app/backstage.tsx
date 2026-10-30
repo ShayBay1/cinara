@@ -1,5 +1,4 @@
 import { useQueryClient } from '@tanstack/react-query';
-import * as Linking from 'expo-linking';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
@@ -9,7 +8,8 @@ import { Icon } from '@/components/Icon';
 import { Button, IconButton, T } from '@/components/ui';
 import { Verified } from '@/components/Verified';
 import { useMe } from '@/hooks/queries';
-import { backstageUrl, canOfferBackstage, canSellHere, formatPrice, messagesUrl } from '@/lib/billing';
+import { canOfferBackstage, canSellHere, formatPrice } from '@/lib/billing';
+import { checkout } from '@/lib/fastCheckout';
 import { PASS_PRICES } from '@/social/api';
 import { startBackstage, startMessages } from '@/social/checkout';
 import { useActor, useMyPass } from '@/social/hooks';
@@ -53,10 +53,13 @@ export default function JoinScreen() {
       setBusy(false);
       return;
     }
-    // Phone apps: Apple requires these to open in Safari, not inside the app.
-    // Sample creators only exist in the app, so send those to the general Backstage page.
+    // Phone apps: straight to Stripe in Safari (Apple requires Safari), already signed in; Apple Pay or
+    // a saved card is one tap, then back into the app right here.
     const real = a && !a.demo ? a : null;
-    await Linking.openURL(messages && real ? messagesUrl(real.handle) : backstageUrl(real?.handle));
+    setBusy(true);
+    const back = real ? `/actor/${real.handle}` : '/social?tab=backstage';
+    await checkout(messages && real ? { type: 'messages', actorId: real.id } : { type: 'backstage' }, back);
+    setBusy(false);
   };
 
   const done = messages ? !!a?.canMessage : !!pass.data?.active;

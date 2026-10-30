@@ -1,5 +1,4 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import * as WebBrowser from 'expo-web-browser';
 import { useState } from 'react';
 import { ScrollView, StyleSheet, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -7,7 +6,8 @@ import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { LegalNote } from '@/components/LegalNote';
 import { Button, IconButton, T } from '@/components/ui';
 import { api, FREE_EPISODES } from '@/data';
-import { canSellHere, MEMBERSHIP_PRICE_LABEL, showExternalJoinLink, WEB_URL } from '@/lib/billing';
+import { canSellHere, MEMBERSHIP_PRICE_LABEL, showExternalJoinLink } from '@/lib/billing';
+import { checkout } from '@/lib/fastCheckout';
 import { colors, fonts } from '@/theme/tokens';
 
 /**
@@ -17,7 +17,7 @@ import { colors, fonts } from '@/theme/tokens';
  */
 export default function JoinScreen() {
   const insets = useSafeAreaInsets();
-  const { episode } = useLocalSearchParams<{ showId?: string; episode?: string }>();
+  const { showId, episode } = useLocalSearchParams<{ showId?: string; episode?: string }>();
   const ep = Number(episode ?? 0);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -89,9 +89,14 @@ export default function JoinScreen() {
           <Button label="Continue with email" onPress={() => router.replace('/sign-in')} />
           {showExternalJoinLink ? (
             <Button
-              kind="outline"
-              label="Join on the Cinara website"
-              onPress={() => void WebBrowser.openBrowserAsync(`${WEB_URL}/join`)}
+              label={`Join · ${MEMBERSHIP_PRICE_LABEL}/month`}
+              loading={loading}
+              onPress={async () => {
+                // Straight to Stripe in Safari, already signed in; back to this episode after paying.
+                setLoading(true);
+                await checkout({ type: 'membership' }, showId && episode ? `/watch/${showId}/${episode}` : '/');
+                setLoading(false);
+              }}
             />
           ) : null}
           <T

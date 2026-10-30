@@ -29,7 +29,7 @@ export default function SettingsScreen() {
   const setShareActivity = useAppStore((s) => s.setShareActivity);
   const friendsFirst = useAppStore((s) => s.friendsFirst);
   const setFriendsFirst = useAppStore((s) => s.setFriendsFirst);
-  const signedIn = !!me.data && api.mode === 'live';
+  const signedIn = !!me.data;
   const [deleting, setDeleting] = useState(false);
   const [deleteError, setDeleteError] = useState<string | null>(null);
   const qc = useQueryClient();
@@ -185,6 +185,10 @@ export default function SettingsScreen() {
         <View>
           <T style={styles.h2}>For creators</T>
           <View style={styles.card}>
+            <LinkRow icon="megaphone" label="Studio" hint="Earnings, today’s challenge, mass messages" onPress={() => router.push('/studio')} />
+            <Rule />
+            <LinkRow icon="vault" label="Content vault" hint="Your photos and videos for posts and messages" onPress={() => router.push('/vault')} />
+            <Rule />
             <LinkRow icon="reel" label="Analytics" hint="Reach, profile visits, followers and top posts" onPress={() => router.push('/analytics')} />
             <Rule />
             <LinkRow icon="ticket" label="Creator settings" hint="Messages price, Backstage and payouts" onPress={() => router.push('/creator')} />

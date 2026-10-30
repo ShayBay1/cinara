@@ -16,6 +16,7 @@ import { colors, fonts, radius } from '@/theme/tokens';
 import { reportSocial, type Media, type Post, type SocialKind } from './api';
 import { useLikePost } from './hooks';
 import { openJoin } from './Join';
+import { canUnlockHere, money, openUnlock, REACTIONS, useReactPost, type Reaction } from './studio';
 
 /* ---------- Time ---------- */
 
@@ -128,7 +129,8 @@ export function socialMenu(
 /* ---------- Media ---------- */
 
 type Src = string | number | undefined;
-const source = (u: Src) => (typeof u === 'number' ? u : u ? { uri: u } : undefined);
+// A bundled image is a number on phones and an object on the web; only a string link becomes { uri }.
+const source = (u: Src) => (typeof u === 'string' ? (u ? { uri: u } : undefined) : u ?? undefined);
 
 function VideoItem({ url, width, height }: { url: string; width: number; height: number }) {
   const player = useVideoPlayer(url, (p) => {
@@ -205,16 +207,24 @@ export function MediaCarousel({ media, width, onDoubleTap }: { media: Media[]; w
 }
 
 /** What a fan without Backstage sees: the post, blurred, and one tap into the actor's Backstage. */
-function Locked({ post, width }: { post: Post; width: number }) {
+function Locked({ post, width, meId }: { post: Post; width: number; meId?: string | null }) {
   const first = post.media[0];
+  const paid = post.priceCents != null;
+  const unlock = () => {
+    if (!meId) return router.push('/sign-in');
+    if (canUnlockHere) void openUnlock('post', post.id, `/post/${post.id}`);
+    else notify('Unlock it on cinaratv.com, signed in with this account. It opens here right after.');
+  };
   const height = first ? mediaHeight(first, width) : Math.round(width * 0.8);
   const kinds = post.media.map((m) => m.type);
   const what = kinds.includes('video') ? 'a video' : kinds.length > 1 ? `${kinds.length} photos` : kinds.length ? 'a photo' : 'a post';
   return (
     <Pressable
       accessibilityRole="button"
-      accessibilityLabel={`Backstage post. Open ${post.author.handle}'s Backstage`}
-      onPress={() => router.push({ pathname: '/actor/[handle]', params: { handle: post.author.handle, tab: 'backstage' } })}
+      accessibilityLabel={paid ? `Paid post, ${money(post.priceCents!)} to unlock` : `Backstage post. Open ${post.author.handle}'s Backstage`}
+      onPress={() =>
+        paid ? unlock() : router.push({ pathname: '/actor/[handle]', params: { handle: post.author.handle, tab: 'backstage' } })
+      }
       style={{ width, height, backgroundColor: colors.wine, overflow: 'hidden' }}
     >
       {first?.preview ? (
@@ -226,12 +236,22 @@ function Locked({ post, width }: { post: Post; width: number }) {
           <Icon name="lock" color={colors.goldInk} size={22} />
         </View>
         <T variant="eyebrow" style={{ color: colors.goldLight, fontSize: 12 }}>
-          Backstage
+          {paid ? 'Exclusive' : 'Backstage'}
         </T>
         <T style={{ fontFamily: fonts.bodyBold, fontSize: 14, color: colors.text, textAlign: 'center' }}>
-          {`${nameOf(post.author)} shared ${what} for Backstage members`}
+          {paid ? `${nameOf(post.author)} shared ${what}. Unlock it to see it.` : `${nameOf(post.author)} shared ${what} for Backstage members`}
         </T>
-        {canOfferBackstage ? (
+        {paid ? (
+          canUnlockHere ? (
+            <Pressable onPress={unlock} accessibilityRole="button" style={s.unlock}>
+              <T style={{ fontFamily: fonts.bodyHeavy, fontSize: 13, color: colors.goldInk }}>{`Unlock · ${money(post.priceCents!)}`}</T>
+            </Pressable>
+          ) : (
+            <T variant="caption" style={{ textAlign: 'center' }}>
+              {`${money(post.priceCents!)} to unlock on cinaratv.com`}
+            </T>
+          )
+        ) : canOfferBackstage ? (
           <Pressable onPress={() => openJoin({ handle: post.author.handle })} accessibilityRole="button" style={s.unlock}>
             <T style={{ fontFamily: fonts.bodyHeavy, fontSize: 13, color: colors.goldInk }}>Unlock every actor · $4.99/mo</T>
           </Pressable>
@@ -318,7 +338,14 @@ export function PostCard({
               </T>
               {post.author.verified ? <Verified size={14} /> : null}
             </View>
-            {post.visibility === 'subscribers' ? (
+            {post.priceCents != null ? (
+              <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
+                <Icon name="lock" size={11} color={colors.goldLight} />
+                <T style={{ fontFamily: fonts.bodyBold, fontSize: 12, color: colors.goldLight }}>
+                  {mine && post.unlocks != null ? `${money(post.priceCents)} · ${post.unlocks} unlocked` : `Exclusive · ${money(post.priceCents)}`}
+                </T>
+              </View>
+            ) : post.visibility === 'subscribers' ? (
               <View style={{ flexDirection: 'row', alignItems: 'center', gap: 4 }}>
                 <Icon name="lock" size={11} color={colors.goldLight} />
                 <T style={{ fontFamily: fonts.bodyBold, fontSize: 12, color: colors.goldLight }}>Backstage</T>
@@ -347,7 +374,7 @@ export function PostCard({
       </View>
 
       {post.locked ? (
-        <Locked post={post} width={width} />
+        <Locked post={post} width={width} meId={meId} />
       ) : post.media.length ? (
         <MediaCarousel media={post.media} width={width} onDoubleTap={() => doLike(true)} />
       ) : (
@@ -369,6 +396,8 @@ export function PostCard({
           </Pressable>
         ) : null}
       </View>
+
+      {!post.locked && !post.demo ? <ReactionBar post={post} meId={meId} /> : null}
 
       <View style={{ paddingHorizontal: 14, gap: 4 }}>
         {post.likes > 0 ? (
@@ -398,6 +427,9 @@ export function PostCard({
 }
 
 export const s = StyleSheet.create({
+  reactRow: { flexDirection: 'row', flexWrap: 'wrap', gap: 6, paddingHorizontal: 12, marginTop: -2, marginBottom: 6 },
+  reactPill: { flexDirection: 'row', alignItems: 'center', gap: 4, minHeight: 28, paddingHorizontal: 10, borderRadius: radius.pill, backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.line },
+  reactMine: { borderColor: colors.gold, backgroundColor: 'rgba(255,184,0,0.14)' },
   ago: { fontFamily: fonts.body, color: colors.muted, fontSize: 12 },
   head: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', paddingHorizontal: 12, paddingVertical: 10 },
   center: { alignItems: 'center', justifyContent: 'center' },
@@ -458,3 +490,53 @@ export const s = StyleSheet.create({
     backgroundColor: colors.ink,
   },
 });
+
+/** Emoji reactions under a post, like the counts subscription apps show (❤️ stays the like). */
+function ReactionBar({ post, meId }: { post: Post; meId?: string | null }) {
+  const react = useReactPost();
+  const [open, setOpen] = useState(false);
+  // Optimistic: what you tapped shows at once; the server's counts replace it when it answers.
+  const [mine, setMine] = useState<string[]>(post.myReactions ?? []);
+  const [counts, setCounts] = useState<Record<string, number>>(post.reactions ?? {});
+  useEffect(() => {
+    setMine(post.myReactions ?? []);
+    setCounts(post.reactions ?? {});
+  }, [post.myReactions, post.reactions]);
+  const toggle = (e: Reaction) => {
+    if (!meId) return router.push('/sign-in');
+    const on = !mine.includes(e);
+    haptic.pick();
+    setMine((m) => (on ? [...m, e] : m.filter((x) => x !== e)));
+    setCounts((c) => ({ ...c, [e]: Math.max(0, (c[e] ?? 0) + (on ? 1 : -1)) }));
+    setOpen(false);
+    react.mutate({ postId: post.id, emoji: e, on });
+  };
+  const shown = REACTIONS.filter((e) => (counts[e] ?? 0) > 0);
+  return (
+    <View style={s.reactRow}>
+      {shown.map((e) => (
+        <Pressable
+          key={e}
+          onPress={() => toggle(e)}
+          accessibilityRole="button"
+          accessibilityLabel={`${e} ${counts[e]}${mine.includes(e) ? ', yours' : ''}`}
+          style={[s.reactPill, mine.includes(e) && s.reactMine]}
+        >
+          <T style={{ fontSize: 14 }}>{e}</T>
+          <T style={{ fontFamily: fonts.bodyBold, fontSize: 12, color: colors.text }}>{String(counts[e])}</T>
+        </Pressable>
+      ))}
+      {open ? (
+        REACTIONS.filter((e) => !shown.includes(e)).map((e) => (
+          <Pressable key={e} onPress={() => toggle(e)} accessibilityRole="button" accessibilityLabel={`React ${e}`} style={s.reactPill}>
+            <T style={{ fontSize: 16 }}>{e}</T>
+          </Pressable>
+        ))
+      ) : (
+        <Pressable onPress={() => setOpen(true)} accessibilityRole="button" accessibilityLabel="Add a reaction" style={s.reactPill}>
+          <T style={{ fontSize: 13, color: colors.muted }}>☺︎＋</T>
+        </Pressable>
+      )}
+    </View>
+  );
+}

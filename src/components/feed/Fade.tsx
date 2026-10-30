@@ -17,7 +17,7 @@ export function Fade({
 }) {
   const id = `fade${useId().replace(/[^a-zA-Z0-9]/g, '')}`;
   return (
-    <Svg style={[StyleSheet.absoluteFill, style]} pointerEvents="none">
+    <Svg width="100%" height="100%" style={[StyleSheet.absoluteFill, style]} pointerEvents="none">
       <Defs>
         <LinearGradient id={id} x1="0" y1="0" x2="0" y2="1">
           {stops.map(([o, a]) => (

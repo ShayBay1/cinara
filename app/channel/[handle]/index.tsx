@@ -309,7 +309,7 @@ function Photos({ media, width }: { media: ChannelMessage['media']; width: numbe
       {media.slice(0, 4).map((m, i) => (
         <Image
           key={i}
-          source={typeof m.url === 'number' ? m.url : m.url ? { uri: m.url } : undefined}
+          source={typeof m.url === 'string' ? (m.url ? { uri: m.url } : undefined) : m.url}
           style={{ width: w, height: one ? Math.round(w * 1.2) : w, borderRadius: radius.sm, backgroundColor: colors.surface }}
           contentFit="cover"
           transition={150}

@@ -2,6 +2,8 @@ import { Platform } from 'react-native';
 
 import { getSupabase, type UserSummary } from '@/data';
 
+import { coverUrl, signPaths, type StoredMedia } from './media';
+
 /**
  * The social side: actors post, fans follow, comment, chat in each show's fan room, and
  * subscribers message actors. Everything runs through Supabase functions (supabase/social_*.sql).
@@ -38,6 +40,13 @@ export interface Post {
   likes: number;
   likedByMe: boolean;
   comments: number;
+  /** A paid post: fans unlock it once for this price (on the website). */
+  priceCents?: number | null;
+  /** Emoji reactions besides the heart: emoji -> count, and the ones you've used. */
+  reactions?: Record<string, number>;
+  myReactions?: string[];
+  /** Your own paid post: how many fans unlocked it. */
+  unlocks?: number | null;
 }
 export interface PostComment {
   id: string;
@@ -73,6 +82,10 @@ export interface ActorProfile {
   friends: number;
   demo?: boolean;
   shows: Array<{ id: string; title: string; role: string | null }>;
+  /** Wide photo across the top of their page. */
+  coverUrl?: string | null;
+  /** Free days on messages for a fan's first time (0 = none, or you've had it). */
+  trialDays?: number;
 }
 
 export type Relation = 'me' | 'friends' | 'requested' | 'incoming' | 'none';
@@ -134,12 +147,39 @@ export interface DmThread {
   other: Author;
   last: string | null;
   unread: number;
+  /** You're the actor in this conversation. */
+  asActor: boolean;
+  /** For the actor: everything this fan has spent on you. */
+  spentCents: number | null;
+  /** For the actor: the fan has your messages add-on right now. */
+  subscriber: boolean | null;
+}
+export interface DmMedia {
+  type: 'image' | 'video' | 'audio';
+  path?: string;
+  bucket?: 'dm-media' | 'post-media';
+  width?: number;
+  height?: number;
+  duration_ms?: number;
+  preview?: string;
+  url?: string;
 }
 export interface DmMessage {
   id: string;
   senderId: string;
   body: string;
   createdAt: string;
+  media: DmMedia[];
+  priceCents: number | null;
+  /** A paid message you haven't unlocked: only blurred previews. */
+  locked: boolean;
+  /** Disappears a minute after it's opened. */
+  ghost: boolean;
+  expired: boolean;
+  openedAt: string | null;
+  mass: boolean;
+  /** Your paid message: someone unlocked it. */
+  sold: boolean | null;
 }
 export interface CreatorStats {
   followers: number;
@@ -192,6 +232,10 @@ const toPost = (r: Row): Post => ({
   likes: Number(r.likes ?? 0),
   likedByMe: Boolean(r.liked_by_me),
   comments: Number(r.comments ?? 0),
+  priceCents: (r.price_cents as number | null) ?? null,
+  reactions: (r.reactions as Record<string, number> | null) ?? {},
+  myReactions: (r.my_reactions as string[] | null) ?? [],
+  unlocks: (r.unlocks as number | null) ?? null,
 });
 
 /** Signs every visible media path in one request (links last an hour; queries refetch long before). */
@@ -267,7 +311,15 @@ export interface NewMedia {
 }
 
 /** Uploads to post-media/{me}/… then creates the post. Cast only (the database checks). */
-export async function createPost(input: { body: string; visibility: Visibility; showId: string | null; media: NewMedia[] }) {
+export async function createPost(input: {
+  body: string;
+  visibility: Visibility;
+  showId: string | null;
+  media: NewMedia[];
+  /** Already stored (picked from the vault): used as they are. */
+  stored?: StoredMedia[];
+  priceCents?: number | null;
+}) {
   const { data } = await sb().auth.getUser();
   if (!data.user) throw new Error('Please sign in first.');
   const me = data.user.id;
@@ -283,7 +335,14 @@ export async function createPost(input: { body: string; visibility: Visibility; 
     const row = must(
       await sb()
         .from('posts')
-        .insert({ author_id: me, body: input.body.trim(), visibility: input.visibility, show_id: input.showId, media: uploaded })
+        .insert({
+          author_id: me,
+          body: input.body.trim(),
+          visibility: input.visibility,
+          show_id: input.showId,
+          media: [...(input.stored ?? []).map(({ bucket: _b, ...m }) => m), ...uploaded],
+          price_cents: input.priceCents ?? null,
+        })
         .select('id')
         .single(),
     ) as { id: string };
@@ -322,6 +381,8 @@ export async function actorProfile(handle: string): Promise<ActorProfile | null>
     relation: ((r.relation as Relation) ?? 'none'),
     friends: Number(r.friends ?? 0),
     shows: (r.shows as ActorProfile['shows']) ?? [],
+    coverUrl: coverUrl(r.cover_path as string | null),
+    trialDays: Number(r.trial_days ?? 0),
   };
 }
 
@@ -524,21 +585,45 @@ export async function dmThreads(): Promise<DmThread[]> {
     other: toAuthor(r.other as Row),
     last: (r.last as string | null) ?? null,
     unread: Number(r.unread ?? 0),
+    asActor: Boolean(r.as_actor),
+    spentCents: r.spent_cents == null ? null : Number(r.spent_cents),
+    subscriber: r.subscriber == null ? null : Boolean(r.subscriber),
   }));
 }
 
 export async function dmMessages(threadId: string): Promise<DmMessage[]> {
   const rows = await rpc<Row[]>('list_dm_messages', { p_thread: threadId });
-  return rows.map((r) => ({
+  const list: DmMessage[] = rows.map((r) => ({
     id: r.id as string,
     senderId: r.sender_id as string,
-    body: r.body as string,
+    body: (r.body as string | null) ?? '',
     createdAt: r.created_at as string,
+    // DM files live in dm-media unless an actor sent them from the vault (post-media).
+    media: ((r.media as DmMedia[] | null) ?? []).map((m) => ({ ...m, bucket: m.bucket ?? 'dm-media' })),
+    priceCents: (r.price_cents as number | null) ?? null,
+    locked: Boolean(r.locked),
+    ghost: Boolean(r.ghost),
+    expired: Boolean(r.expired),
+    openedAt: (r.opened_at as string | null) ?? null,
+    mass: Boolean(r.mass),
+    sold: r.sold == null ? null : Boolean(r.sold),
   }));
+  const urls = await signPaths(list.flatMap((m) => m.media));
+  return list.map((m) => ({ ...m, media: m.media.map((x) => (x.path ? { ...x, url: urls.get(x.path) } : x)) }));
 }
 
-export async function sendDm(threadId: string, body: string) {
-  return rpc<string>('send_dm', { p_thread: threadId, p_body: body });
+export async function sendDm(
+  threadId: string,
+  body: string,
+  extra: { media?: StoredMedia[]; priceCents?: number | null; ghost?: boolean } = {},
+) {
+  return rpc<string>('send_dm', {
+    p_thread: threadId,
+    p_body: body,
+    p_media: extra.media ?? [],
+    p_price_cents: extra.priceCents ?? null,
+    p_ghost: extra.ghost ?? false,
+  });
 }
 
 export async function unreadDms(): Promise<number> {

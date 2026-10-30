@@ -24,6 +24,7 @@ import { useLaunch } from '@/store/launch';
 
 import { useMe } from '@/hooks/queries';
 import { lockUpright } from '@/lib/orientationLock';
+import { usePurchaseReturn } from '@/lib/fastCheckout';
 import { useScreenProtection } from '@/lib/screenProtection';
 import { pullProgress, registerForPush, startProgressSync } from '@/lib/sync';
 import { useTimeManagement } from '@/store/wellbeing';
@@ -81,6 +82,7 @@ export default function RootLayout() {
 
   useNotificationDeepLinks();
   useScreenProtection();
+  usePurchaseReturn(queryClient);
 
   if (!fontsLoaded && !fontError) return null;
 
@@ -128,6 +130,9 @@ export default function RootLayout() {
           <Stack.Screen name="time-management" options={{ animation: 'slide_from_right' }} />
           <Stack.Screen name="your-activity" options={{ animation: 'slide_from_right' }} />
           <Stack.Screen name="analytics" options={{ animation: 'slide_from_right' }} />
+          <Stack.Screen name="studio" options={{ animation: 'slide_from_right' }} />
+          <Stack.Screen name="vault" options={{ animation: 'slide_from_right' }} />
+          <Stack.Screen name="mass-dm" options={{ presentation: 'modal' }} />
           <Stack.Screen name="channel/[handle]/index" options={{ animation: 'slide_from_right' }} />
           <Stack.Screen name="channel/[handle]/[messageId]" options={{ presentation: 'modal' }} />
           <Stack.Screen name="admin" />

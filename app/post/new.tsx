@@ -2,8 +2,8 @@ import { useQueryClient } from '@tanstack/react-query';
 import { Image } from 'expo-image';
 import { ImageManipulator, SaveFormat } from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
-import { router } from 'expo-router';
-import { useState } from 'react';
+import { router, useFocusEffect } from 'expo-router';
+import { useCallback, useState } from 'react';
 import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
 
@@ -13,6 +13,8 @@ import { useMe, useShows } from '@/hooks/queries';
 import { useKeyboardHeight } from '@/hooks/useKeyboardHeight';
 import { notify } from '@/lib/safety';
 import { createPost, socialLive, type NewMedia, type Visibility } from '@/social/api';
+import { PriceChips } from '@/social/Composer';
+import { money, vaultAsMedia, vaultPick, type VaultItem } from '@/social/studio';
 import { NeedsLive } from '@/social/ui';
 import { colors, fonts, radius } from '@/theme/tokens';
 
@@ -33,6 +35,16 @@ export default function NewPostScreen() {
   const [showId, setShowId] = useState<string | null>(null);
   const [picking, setPicking] = useState(false);
   const [posting, setPosting] = useState(false);
+  const [vault, setVault] = useState<VaultItem[]>([]);
+  const [price, setPrice] = useState<number | null>(null);
+  const verified = !!me.data?.verified;
+
+  useFocusEffect(
+    useCallback(() => {
+      const picked = vaultPick.take('post');
+      if (picked?.length) setVault((v) => [...v, ...picked].slice(0, MAX_ITEMS));
+    }, []),
+  );
 
   const close = () => (router.canGoBack() ? router.back() : router.replace('/social'));
 
@@ -89,10 +101,14 @@ export default function NewPostScreen() {
   };
 
   const post = async () => {
-    if (!body.trim() && !media.length) return;
+    if (!body.trim() && !media.length && !vault.length) return;
+    if (price && !media.length && !vault.length) {
+      notify('Add a photo or video for fans to unlock.');
+      return;
+    }
     setPosting(true);
     try {
-      const id = await createPost({ body, visibility, showId, media });
+      const id = await createPost({ body, visibility, showId, media, stored: vaultAsMedia(vault), priceCents: price });
       await qc.invalidateQueries({ queryKey: ['social'] });
       router.replace({ pathname: '/post/[id]', params: { id } });
     } catch (e) {
@@ -110,7 +126,7 @@ export default function NewPostScreen() {
         compact
         label="Share"
         loading={posting}
-        disabled={!body.trim() && !media.length}
+        disabled={!body.trim() && !media.length && !vault.length}
         onPress={post}
         style={{ minWidth: 76 }}
       />
@@ -162,7 +178,37 @@ export default function NewPostScreen() {
               </Pressable>
             </View>
           ))}
-          {media.length < MAX_ITEMS ? (
+          {vault.map((v) => (
+            <View key={v.id} style={styles.thumb}>
+              {v.url && v.type === 'image' ? <Image source={{ uri: v.url }} style={StyleSheet.absoluteFill} contentFit="cover" /> : null}
+              {v.type === 'video' ? (
+                <View style={[StyleSheet.absoluteFill, { backgroundColor: '#000', alignItems: 'center', justifyContent: 'center' }]}>
+                  <Icon name="play" filled color={colors.text} />
+                </View>
+              ) : null}
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel="Remove"
+                hitSlop={8}
+                onPress={() => setVault((list) => list.filter((x) => x.id !== v.id))}
+                style={styles.remove}
+              >
+                <Icon name="close" size={14} color={colors.text} />
+              </Pressable>
+            </View>
+          ))}
+          {media.length + vault.length < MAX_ITEMS ? (
+            <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Add from your vault"
+              onPress={() => router.push({ pathname: '/vault', params: { pick: 'post' } })}
+              style={[styles.thumb, styles.add]}
+            >
+              <Icon name="vault" color={colors.muted} />
+              <T variant="caption">Vault</T>
+            </Pressable>
+          ) : null}
+          {media.length + vault.length < MAX_ITEMS ? (
             <Pressable
               accessibilityRole="button"
               accessibilityLabel="Add photos or videos"
@@ -201,6 +247,20 @@ export default function NewPostScreen() {
               : 'Everyone sees a blurred preview; Backstage members open it. You earn from every Backstage fan who views it.'}
           </T>
         </View>
+
+        {verified ? (
+          <View style={{ gap: 8 }}>
+            <T variant="eyebrow" style={{ color: colors.text }}>
+              Price to unlock
+            </T>
+            <PriceChips value={price} onChange={setPrice} freeLabel="No price" />
+            <T variant="caption">
+              {price
+                ? `Anyone can unlock it for ${money(price)} (Backstage doesn’t open paid posts). You keep 80%.`
+                : 'Optional. Lock this post with a one-time price.'}
+            </T>
+          </View>
+        ) : null}
 
         {(shows.data ?? []).length ? (
           <View style={{ gap: 8 }}>

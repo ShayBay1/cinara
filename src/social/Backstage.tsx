@@ -118,7 +118,7 @@ function CreatorRow({ c, peek }: { c: ActorCard; peek: Post[] }) {
               <View key={p.id} style={styles.peek}>
                 {src ? (
                   <Image
-                    source={typeof src === 'number' ? src : { uri: src }}
+                    source={typeof src === 'string' ? { uri: src } : src}
                     style={StyleSheet.absoluteFill}
                     contentFit="cover"
                     blurRadius={p.locked ? 30 : 0}

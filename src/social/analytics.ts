@@ -3,6 +3,7 @@ import { useQuery } from '@tanstack/react-query';
 import { getSupabase } from '@/data';
 
 import type { Media } from './api';
+import { demoCreatorStats, demoMyActivity } from './demo';
 
 /**
  * Analytics: an Instagram-style dashboard for creators, and TikTok-style
@@ -63,6 +64,7 @@ export interface MyActivity {
 }
 
 export async function creatorAnalytics(days: number): Promise<CreatorStats> {
+  if (!live()) return demoCreatorStats(days);
   const { data, error } = await sb().rpc('creator_analytics', { p_days: days });
   if (error) throw new Error(error.message);
   const r = (data as Row) ?? {};
@@ -105,6 +107,7 @@ export async function creatorAnalytics(days: number): Promise<CreatorStats> {
 }
 
 export async function myActivity(days: number): Promise<MyActivity> {
+  if (!live()) return demoMyActivity(days);
   const { data, error } = await sb().rpc('my_activity', { p_days: days });
   if (error) throw new Error(error.message);
   const r = (data as Row) ?? {};
@@ -133,9 +136,9 @@ export async function recordImpressions(postIds: string[]) {
 }
 
 export const useCreatorAnalytics = (days: number, enabled = true) =>
-  useQuery({ queryKey: ['social', 'analytics', days], queryFn: () => creatorAnalytics(days), enabled: live() && enabled, staleTime: 60_000 });
+  useQuery({ queryKey: ['social', 'analytics', days], queryFn: () => creatorAnalytics(days), enabled, staleTime: 60_000 });
 export const useMyActivity = (days: number, enabled = true) =>
-  useQuery({ queryKey: ['social', 'my-activity', days], queryFn: () => myActivity(days), enabled: live() && enabled, staleTime: 60_000 });
+  useQuery({ queryKey: ['social', 'my-activity', days], queryFn: () => myActivity(days), enabled, staleTime: 60_000 });
 
 /** "+12%" against the period before; null when there's nothing to compare with. */
 export function change(now: number, before: number): string | null {

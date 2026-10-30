@@ -30,6 +30,23 @@ const cors = {
 const json = (body: unknown, status = 200) =>
   new Response(JSON.stringify(body), { status, headers: { ...cors, "Content-Type": "application/json" } });
 
+/**
+ * One Stripe customer per Cinara account, shared by every purchase, so a card saved once (or Apple Pay /
+ * Link) is ready the next time: unlocking or subscribing is a tap and Face ID, no typing.
+ */
+async function customerFor(user: { id: string; email?: string | null }): Promise<string> {
+  const tables: [string, string][] = [["memberships", "user_id"], ["creator_passes", "user_id"], ["actor_subscriptions", "fan_id"]];
+  for (const [table, col] of tables) {
+    const { data } = await db.from(table).select("stripe_customer_id").eq(col, user.id).not("stripe_customer_id", "is", null).limit(1);
+    const id = (data as { stripe_customer_id: string }[] | null)?.[0]?.stripe_customer_id;
+    if (id) return id;
+  }
+  const found = await stripe.customers.search({ query: `metadata['cinara_user']:'${user.id}'`, limit: 1 }).catch(() => null);
+  if (found?.data[0]) return found.data[0].id;
+  const created = await stripe.customers.create({ email: user.email ?? undefined, metadata: { cinara_user: user.id } });
+  return created.id;
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") return new Response("ok", { headers: cors });
   try {
@@ -66,8 +83,7 @@ Deno.serve(async (req) => {
       return json({ upgraded: true });
     }
 
-    const { data: m } = await db.from("memberships").select("stripe_customer_id").eq("user_id", user.id).maybeSingle();
-    const customer = pass?.stripe_customer_id ?? m?.stripe_customer_id ?? null;
+    const customer = pass?.stripe_customer_id ?? (await customerFor(user));
     const metadata = { kind: "creator_pass", tier, user_id: user.id };
     const session = await stripe.checkout.sessions.create({
       mode: "subscription",
@@ -86,10 +102,10 @@ Deno.serve(async (req) => {
         },
       }],
       client_reference_id: user.id,
-      ...(customer ? { customer } : { customer_email: user.email }),
+      customer,
       metadata,
       subscription_data: { metadata },
-      success_url: `${siteFor(req)}${back}?backstage=1`,
+      success_url: `${siteFor(req)}${back}${back.includes("?") ? "&" : "?"}backstage=1`,
       cancel_url: `${siteFor(req)}${back}`,
     });
     return json({ url: session.url });

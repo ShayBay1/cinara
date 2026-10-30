@@ -530,3 +530,21 @@ export function pickFiles(accept: string): Promise<File[]> {
     input.click();
   });
 }
+
+/** Paid DMs and paid posts (unlocks), per actor for one month. */
+export interface UnlockMonthRow {
+  actor_id: string;
+  handle: string | null;
+  sales: number;
+  gross_cents: number;
+  actor_cents: number;
+  paid: boolean;
+}
+export const useUnlockMonth = (month: string) =>
+  useQuery({
+    queryKey: ['admin', 'unlock-month', month],
+    queryFn: async () => ((await must(sb().rpc('admin_unlock_month', { p_month: month }))) as UnlockMonthRow[] | null) ?? [],
+  });
+export const markUnlocksPaid = async (args: { actor: string; month: string }) => {
+  await must(sb().rpc('admin_mark_unlock_payout', { p_actor: args.actor, p_month: args.month }));
+};

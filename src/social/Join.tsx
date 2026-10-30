@@ -80,7 +80,7 @@ export function MessagesCard({ actor }: { actor: ActorProfile }) {
         <Button
           compact
           kind="outline"
-          label={`Add messages · ${formatPrice(actor.dmPriceCents)}/mo`}
+          label={actor.trialDays ? `Try ${actor.trialDays} days free · then ${formatPrice(actor.dmPriceCents)}/mo` : `Add messages · ${formatPrice(actor.dmPriceCents)}/mo`}
           onPress={() => openJoin({ handle: actor.handle, mode: 'messages' })}
           style={{ borderColor: colors.gold, marginTop: 10 }}
         />

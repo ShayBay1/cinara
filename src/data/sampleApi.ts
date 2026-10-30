@@ -14,7 +14,8 @@ import type { ChatMessage, Comment, CommentSort, Friend, FriendRequest, UserSumm
 
 /** In-memory backend with sample content. Used when Supabase isn't configured. */
 export function createSampleApi(): PlatformApi {
-  const me: UserSummary = { id: 'me', handle: 'you' };
+  // EXPO_PUBLIC_SAMPLE_CREATOR=1 previews the app as an actor (creator tools, analytics).
+  const me: UserSummary = { id: 'me', handle: 'you', isCast: process.env.EXPO_PUBLIC_SAMPLE_CREATOR === '1' };
   let avatarUrl: string | null = null;
   const comments = new Map<string, Comment[]>();
   let friends: Friend[] = [...FRIENDS];
